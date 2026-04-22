@@ -155,7 +155,7 @@ export default function LocalApp() {
         <div className="text-6xl mb-4">✅</div>
         <h2 className="text-white text-2xl font-bold mb-2">Alerta enviada</h2>
         <p className="text-gray-400 text-center mb-2">
-          Vigilancia ha sido notificada. Mantén la calma.
+          Central de Monitoreo ha sido notificada. Mantén la calma.
         </p>
         <p className="text-gray-500 text-sm mb-8">
           Local {localData.numero} — {localData.nombre}
