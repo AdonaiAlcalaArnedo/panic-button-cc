@@ -87,7 +87,7 @@ export default function Dashboard() {
         {/* Encabezado */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-white text-2xl font-bold">
-            🖥️ Central de Vigilancia
+            🖥️ Central de Monitoreo
           </h1>
           <div className="flex gap-2">
             <button
