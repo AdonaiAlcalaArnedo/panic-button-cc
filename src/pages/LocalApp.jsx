@@ -212,6 +212,15 @@ export default function LocalApp() {
     <div className="min-h-screen bg-gray-900 flex flex-col items-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-2 mt-8">
+          {localData.etapa === 'empleado' ? (
+        <>
+          <p className="text-gray-400 text-sm">{localData.piso}</p>
+          <h1 className="text-white text-xl font-bold mb-8">
+            {localData.nombre}
+          </h1>
+        </>
+      ) : (
+        <>
           <p className="text-gray-400 text-sm">
             Etapa {localData.etapa} • Piso {localData.piso}
           </p>
@@ -219,6 +228,10 @@ export default function LocalApp() {
             Local {localData.numero}
           </h1>
           <p className="text-gray-300 text-sm mb-8">{localData.nombre}</p>
+        </>
+      )}
+          
+          
         </div>
         <div className="flex flex-col gap-4">
           {TIPOS_ALERTA.map((item) => (
