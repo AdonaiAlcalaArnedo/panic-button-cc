@@ -108,7 +108,7 @@ export default function Dashboard() {
                   : 'bg-gray-800 text-gray-400'
               }`}
             >
-              🏪 Locales
+              🏪 Marcas
             </button>
             <button
               onClick={() => setVista('empleados')}

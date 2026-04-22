@@ -174,7 +174,7 @@ export default function Locales() {
       {/* Encabezado */}
       <div className="no-print flex items-center justify-between mb-6">
         <h2 className="text-white text-xl font-bold">
-          🏪 Locales — {locales.filter((l) => l.activo).length} activos
+          🏪 Marcas — {locales.filter((l) => l.activo).length} activas
         </h2>
         <div className="flex gap-2">
           <button
@@ -294,7 +294,7 @@ export default function Locales() {
           htmlFor="mostrar-inactivos"
           className="text-gray-400 text-sm cursor-pointer"
         >
-          Mostrar locales inactivos (
+          Mostrar marcas inactivas (
           {locales.filter((l) => !l.activo).length})
         </label>
       </div>
