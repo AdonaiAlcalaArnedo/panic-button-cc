@@ -33,10 +33,6 @@ export default function Dashboard() {
     sessionStorage.getItem('dashboard_auth') === 'true'
   )
 
-  if (!autenticado) {
-    return <Login onLogin={() => setAutenticado(true)} />
-  }
-
   async function cargarAlertas() {
     const { data, error } = await supabase
       .from('alertas')
@@ -46,18 +42,9 @@ export default function Dashboard() {
     setCargando(false)
   }
 
-  async function cambiarEstado(id, nuevoEstado) {
-    const { error } = await supabase
-      .from('alertas')
-      .update({
-        estado: nuevoEstado,
-        atendida_at: nuevoEstado === 'atendida' ? new Date().toISOString() : null,
-      })
-      .eq('id', id)
-    if (!error) cargarAlertas()
-  }
-
   useEffect(() => {
+    if (!autenticado) return
+
     cargarAlertas()
 
     const canal = supabase
@@ -70,7 +57,22 @@ export default function Dashboard() {
       .subscribe()
 
     return () => supabase.removeChannel(canal)
-  }, [])
+  }, [autenticado])
+
+  async function cambiarEstado(id, nuevoEstado) {
+    const { error } = await supabase
+      .from('alertas')
+      .update({
+        estado: nuevoEstado,
+        atendida_at: nuevoEstado === 'atendida' ? new Date().toISOString() : null,
+      })
+      .eq('id', id)
+    if (!error) cargarAlertas()
+  }
+
+  if (!autenticado) {
+    return <Login onLogin={() => setAutenticado(true)} />
+  }
 
   const alertasFiltradas = alertas.filter((a) => a.estado === filtro)
 
@@ -124,7 +126,6 @@ export default function Dashboard() {
                   COLORES[alerta.tipo] || 'border-gray-500 bg-gray-800'
                 }`}
               >
-                {/* Cabecera de la alerta */}
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <span className="text-2xl mr-2">{EMOJIS[alerta.tipo]}</span>
@@ -137,7 +138,6 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                {/* Datos del local */}
                 <div className="mb-3">
                   <p className="text-white font-medium">
                     Local {alerta.local_numero}
@@ -153,7 +153,6 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Botones de acción */}
                 {alerta.estado === 'pendiente' && (
                   <div className="flex gap-2">
                     <button
