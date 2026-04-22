@@ -68,21 +68,35 @@ export default function LocalApp() {
   }, [])
 
   async function enviarAlerta() {
-    setEnviando(true)
-    const { error } = await supabase.from('alertas').insert({
-      local_numero: localData.numero,
-      local_nombre: localData.nombre,
-      tipo: tipoSeleccionado.tipo,
-      detalle: detalle,
-      estado: 'pendiente',
-    })
+  setEnviando(true)
+
+  const { data: localActivo } = await supabase
+    .from('locales')
+    .select('activo')
+    .eq('token', localData.token)
+    .single()
+
+  if (!localActivo || !localActivo.activo) {
+    localStorage.removeItem('local_data')
     setEnviando(false)
-    if (error) {
-      alert('Error al enviar. Intenta de nuevo.')
-    } else {
-      setPaso('confirmacion')
-    }
+    setPaso('sin_acceso')
+    return
   }
+
+  const { error } = await supabase.from('alertas').insert({
+    local_numero: localData.numero,
+    local_nombre: localData.nombre,
+    tipo: tipoSeleccionado.tipo,
+    detalle: detalle,
+    estado: 'pendiente',
+  })
+  setEnviando(false)
+  if (error) {
+    alert('Error al enviar. Intenta de nuevo.')
+  } else {
+    setPaso('confirmacion')
+  }
+}
 
   function reiniciar() {
     setPaso('inicio')

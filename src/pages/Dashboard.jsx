@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import Login from '../components/Login'
 import Locales from './Locales'
+import Empleados from './Empleados'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -109,11 +110,23 @@ export default function Dashboard() {
             >
               🏪 Locales
             </button>
+            <button
+              onClick={() => setVista('empleados')}
+              className={`px-4 py-2 rounded-xl text-sm ${
+                vista === 'empleados'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              👷 Empleados
+            </button>
           </div>
         </div>
 
-        {/* Vista Locales */}
-        {vista === 'locales' ? (
+        {/* Vistas */}
+        {vista === 'empleados' ? (
+          <Empleados />
+        ) : vista === 'locales' ? (
           <Locales />
         ) : (
           <>
