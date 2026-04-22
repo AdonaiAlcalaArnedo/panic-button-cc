@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import Login from '../components/Login'
+import Locales from './Locales'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [alertas, setAlertas] = useState([])
   const [filtro, setFiltro] = useState('pendiente')
   const [cargando, setCargando] = useState(true)
+  const [vista, setVista] = useState('alertas')
   const [autenticado, setAutenticado] = useState(
     sessionStorage.getItem('dashboard_auth') === 'true'
   )
@@ -64,7 +66,8 @@ export default function Dashboard() {
       .from('alertas')
       .update({
         estado: nuevoEstado,
-        atendida_at: nuevoEstado === 'atendida' ? new Date().toISOString() : null,
+        atendida_at:
+          nuevoEstado === 'atendida' ? new Date().toISOString() : null,
       })
       .eq('id', id)
     if (!error) cargarAlertas()
@@ -78,109 +81,140 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-900 p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
 
         {/* Encabezado */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-white text-2xl font-bold">
             🖥️ Central de Vigilancia
           </h1>
-          <span className="text-gray-400 text-sm">
-            {alertas.filter((a) => a.estado === 'pendiente').length} pendientes
-          </span>
-        </div>
-
-        {/* Filtros */}
-        <div className="flex gap-2 mb-6">
-          {['pendiente', 'atendida', 'pospuesta'].map((estado) => (
+          <div className="flex gap-2">
             <button
-              key={estado}
-              onClick={() => setFiltro(estado)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium capitalize ${
-                filtro === estado
+              onClick={() => setVista('alertas')}
+              className={`px-4 py-2 rounded-xl text-sm ${
+                vista === 'alertas'
                   ? 'bg-white text-gray-900'
                   : 'bg-gray-800 text-gray-400'
               }`}
             >
-              {estado}
-              <span className="ml-2 text-xs">
-                ({alertas.filter((a) => a.estado === estado).length})
-              </span>
+              🚨 Alertas
             </button>
-          ))}
+            <button
+              onClick={() => setVista('locales')}
+              className={`px-4 py-2 rounded-xl text-sm ${
+                vista === 'locales'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              🏪 Locales
+            </button>
+          </div>
         </div>
 
-        {/* Lista de alertas */}
-        {cargando ? (
-          <p className="text-gray-400 text-center py-12">Cargando...</p>
-        ) : alertasFiltradas.length === 0 ? (
-          <p className="text-gray-400 text-center py-12">
-            No hay alertas {filtro}s
-          </p>
+        {/* Vista Locales */}
+        {vista === 'locales' ? (
+          <Locales />
         ) : (
-          <div className="flex flex-col gap-4">
-            {alertasFiltradas.map((alerta) => (
-              <div
-                key={alerta.id}
-                className={`border-l-4 rounded-xl p-4 ${
-                  COLORES[alerta.tipo] || 'border-gray-500 bg-gray-800'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <span className="text-2xl mr-2">{EMOJIS[alerta.tipo]}</span>
-                    <span className="text-white font-bold capitalize">
-                      {alerta.tipo}
-                    </span>
-                  </div>
-                  <span className="text-gray-400 text-xs">
-                    {tiempoTranscurrido(alerta.created_at)}
+          <>
+            {/* Filtros de alertas */}
+            <div className="flex gap-2 mb-6">
+              {['pendiente', 'atendida', 'pospuesta'].map((estado) => (
+                <button
+                  key={estado}
+                  onClick={() => setFiltro(estado)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium capitalize ${
+                    filtro === estado
+                      ? 'bg-white text-gray-900'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  {estado}
+                  <span className="ml-2 text-xs">
+                    ({alertas.filter((a) => a.estado === estado).length})
                   </span>
-                </div>
+                </button>
+              ))}
+            </div>
 
-                <div className="mb-3">
-                  <p className="text-white font-medium">
-                    Local {alerta.local_numero}
-                    {alerta.local_nombre && ` — ${alerta.local_nombre}`}
-                  </p>
-                  {alerta.telefono && (
-                    <p className="text-gray-300 text-sm">📞 {alerta.telefono}</p>
-                  )}
-                  {alerta.detalle && (
-                    <p className="text-gray-300 text-sm mt-1">
-                      📝 {alerta.detalle}
-                    </p>
-                  )}
-                </div>
-
-                {alerta.estado === 'pendiente' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => cambiarEstado(alerta.id, 'atendida')}
-                      className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
-                    >
-                      ✅ Atender
-                    </button>
-                    <button
-                      onClick={() => cambiarEstado(alerta.id, 'pospuesta')}
-                      className="bg-yellow-600 text-white text-sm px-4 py-2 rounded-lg"
-                    >
-                      ⏸️ Posponer
-                    </button>
-                  </div>
-                )}
-                {alerta.estado === 'pospuesta' && (
-                  <button
-                    onClick={() => cambiarEstado(alerta.id, 'atendida')}
-                    className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
+            {/* Lista de alertas */}
+            {cargando ? (
+              <p className="text-gray-400 text-center py-12">Cargando...</p>
+            ) : alertasFiltradas.length === 0 ? (
+              <p className="text-gray-400 text-center py-12">
+                No hay alertas {filtro}s
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {alertasFiltradas.map((alerta) => (
+                  <div
+                    key={alerta.id}
+                    className={`border-l-4 rounded-xl p-4 ${
+                      COLORES[alerta.tipo] || 'border-gray-500 bg-gray-800'
+                    }`}
                   >
-                    ✅ Marcar como atendida
-                  </button>
-                )}
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <span className="text-2xl mr-2">
+                          {EMOJIS[alerta.tipo]}
+                        </span>
+                        <span className="text-white font-bold capitalize">
+                          {alerta.tipo}
+                        </span>
+                      </div>
+                      <span className="text-gray-400 text-xs">
+                        {tiempoTranscurrido(alerta.created_at)}
+                      </span>
+                    </div>
+
+                    <div className="mb-3">
+                      <p className="text-white font-medium">
+                        Local {alerta.local_numero}
+                        {alerta.local_nombre && ` — ${alerta.local_nombre}`}
+                      </p>
+                      {alerta.telefono && (
+                        <p className="text-gray-300 text-sm">
+                          📞 {alerta.telefono}
+                        </p>
+                      )}
+                      {alerta.detalle && (
+                        <p className="text-gray-300 text-sm mt-1">
+                          📝 {alerta.detalle}
+                        </p>
+                      )}
+                    </div>
+
+                    {alerta.estado === 'pendiente' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => cambiarEstado(alerta.id, 'atendida')}
+                          className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
+                        >
+                          ✅ Atender
+                        </button>
+                        <button
+                          onClick={() => cambiarEstado(alerta.id, 'pospuesta')}
+                          className="bg-yellow-600 text-white text-sm px-4 py-2 rounded-lg"
+                        >
+                          ⏸️ Posponer
+                        </button>
+                      </div>
+                    )}
+                    {alerta.estado === 'pospuesta' && (
+                      <button
+                        onClick={() => cambiarEstado(alerta.id, 'atendida')}
+                        className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
+                      >
+                        ✅ Marcar como atendida
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
+
       </div>
     </div>
   )
