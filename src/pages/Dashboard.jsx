@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import Login from '../components/Login'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -28,6 +29,13 @@ export default function Dashboard() {
   const [alertas, setAlertas] = useState([])
   const [filtro, setFiltro] = useState('pendiente')
   const [cargando, setCargando] = useState(true)
+  const [autenticado, setAutenticado] = useState(
+    sessionStorage.getItem('dashboard_auth') === 'true'
+  )
+
+  if (!autenticado) {
+    return <Login onLogin={() => setAutenticado(true)} />
+  }
 
   async function cargarAlertas() {
     const { data, error } = await supabase
