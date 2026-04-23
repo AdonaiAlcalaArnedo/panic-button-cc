@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -26,6 +27,41 @@ function formatTiempo(seg) {
   if (seg < 60) return `${seg} seg`
   return `${Math.floor(seg / 60)} min ${seg % 60} seg`
 }
+
+function exportarExcel(alertas) {
+  const filas = alertas.map((a) => ({
+    Fecha: formatFecha(a.created_at),
+    'Local N°': a.local_numero,
+    'Nombre Local': a.local_nombre || '',
+    Tipo: a.tipo,
+    Estado: a.estado,
+    Detalle: a.detalle || '',
+    'Tiempo Respuesta': a.tiempo_respuesta_seg != null
+      ? formatTiempo(a.tiempo_respuesta_seg)
+      : 'Sin respuesta',
+    'Fecha Atención': a.atendida_at ? formatFecha(a.atendida_at) : '',
+  }))
+
+  const hoja = XLSX.utils.json_to_sheet(filas)
+
+  hoja['!cols'] = [
+    { wch: 18 },
+    { wch: 10 },
+    { wch: 25 },
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 30 },
+    { wch: 18 },
+    { wch: 18 },
+  ]
+
+  const libro = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(libro, hoja, 'Alertas')
+
+  const fecha = new Date().toLocaleDateString('es-CO').replace(/\//g, '-')
+  XLSX.writeFile(libro, `Reportes_Alertas_${fecha}.xlsx`)
+}
+
 
 function formatFecha(fecha) {
   return new Date(fecha).toLocaleString('es-CO', {
@@ -200,11 +236,18 @@ export default function Reportes() {
 
       {/* Tabla historial */}
       <div className="bg-gray-800 rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700">
-          <p className="text-gray-400 text-sm">
-            {alertasFiltradas.length} registros
-          </p>
-        </div>
+        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+            <p className="text-gray-400 text-sm">
+                {alertasFiltradas.length} registros
+            </p>
+            <button
+                onClick={() => exportarExcel(alertasFiltradas)}
+                disabled={alertasFiltradas.length === 0}
+                className="bg-green-700 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-40"
+            >
+                📥 Exportar Excel
+            </button>
+            </div>
         {alertasFiltradas.length === 0 ? (
           <p className="text-gray-400 text-center py-12">
             No hay alertas en este período
