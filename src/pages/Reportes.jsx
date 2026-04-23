@@ -39,6 +39,7 @@ function exportarExcel(alertas) {
     'Tiempo Respuesta': a.tiempo_respuesta_seg != null
       ? formatTiempo(a.tiempo_respuesta_seg)
       : 'Sin respuesta',
+      'Atendida por': a.atendida_por || '',
     'Fecha Atención': a.atendida_at ? formatFecha(a.atendida_at) : '',
   }))
 
@@ -51,6 +52,7 @@ function exportarExcel(alertas) {
     { wch: 14 },
     { wch: 12 },
     { wch: 30 },
+    { wch: 18 },
     { wch: 18 },
     { wch: 18 },
   ]
@@ -293,11 +295,18 @@ export default function Reportes() {
                       </p>
                     )}
                   </div>
-                  {alerta.tiempo_respuesta_seg != null && (
-                    <span className="text-gray-400 text-xs">
-                      ⏱️ {formatTiempo(alerta.tiempo_respuesta_seg)}
-                    </span>
-                  )}
+                  <div className="text-right">
+                    {alerta.tiempo_respuesta_seg != null && (
+                      <p className="text-gray-400 text-xs">
+                        ⏱️ {formatTiempo(alerta.tiempo_respuesta_seg)}
+                      </p>
+                    )}
+                    {alerta.atendida_por && (
+                        <p className="text-gray-500 text-xs">
+                          👮 {alerta.atendida_por}
+                        </p>
+                      )}
+                  </div>
                 </div>
               </div>
             ))}

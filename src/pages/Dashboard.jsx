@@ -5,6 +5,7 @@ import Locales from './Locales'
 import Empleados from './Empleados'
 import AlertaSonora from '../components/AlertaSonora'
 import Reportes from './Reportes'
+import Operadores from './Operadores'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -29,6 +30,15 @@ function tiempoTranscurrido(fecha) {
   return `hace ${Math.floor(diff / 3600)} h`
 }
 
+function obtenerOperador() {
+  try {
+    const data = sessionStorage.getItem('operador')
+    return data ? JSON.parse(data) : null
+  } catch {
+    return null
+  }
+}
+
 export default function Dashboard() {
   const [alertas, setAlertas] = useState([])
   const [filtro, setFiltro] = useState('pendiente')
@@ -38,45 +48,52 @@ export default function Dashboard() {
   const [autenticado, setAutenticado] = useState(
     sessionStorage.getItem('dashboard_auth') === 'true'
   )
+  const [operador, setOperador] = useState(obtenerOperador())
   const alertasAnteriores = useRef([])
-
   const cargaInicial = useRef(true)
 
-async function cargarAlertas() {
-  const { data, error } = await supabase
-    .from('alertas')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (!error) {
-    const pendientesNuevas = data.filter((a) => a.estado === 'pendiente')
-
-    if (cargaInicial.current) {
-      alertasAnteriores.current = pendientesNuevas
-      cargaInicial.current = false
-    } else {
-      const idsAnteriores = alertasAnteriores.current.map((a) => a.id)
-      const nuevas = pendientesNuevas.filter(
-        (a) => !idsAnteriores.includes(a.id)
-      )
-      if (nuevas.length > 0) {
-        setAlertaActiva(nuevas[0])
+  async function cargarAlertas() {
+    const { data, error } = await supabase
+      .from('alertas')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (!error) {
+      const pendientesNuevas = data.filter((a) => a.estado === 'pendiente')
+      if (cargaInicial.current) {
+        alertasAnteriores.current = pendientesNuevas
+        cargaInicial.current = false
+      } else {
+        const idsAnteriores = alertasAnteriores.current.map((a) => a.id)
+        const nuevas = pendientesNuevas.filter(
+          (a) => !idsAnteriores.includes(a.id)
+        )
+        if (nuevas.length > 0) {
+          setAlertaActiva(nuevas[0])
+        }
+        alertasAnteriores.current = pendientesNuevas
       }
-      alertasAnteriores.current = pendientesNuevas
+      setAlertas(data)
     }
-    setAlertas(data)
+    setCargando(false)
   }
-  setCargando(false)
-}
 
   async function cambiarEstado(id, nuevoEstado, tiempoRespuesta = null) {
+  const operadorActual = operador || obtenerOperador()
+
+  const ahora = new Date().toISOString()
+  const alerta = alertas.find((a) => a.id === id)
+
+  const tiempoCalculado = tiempoRespuesta !== null
+    ? tiempoRespuesta
+    : alerta
+      ? Math.floor((new Date() - new Date(alerta.created_at)) / 1000)
+      : null
+
   const actualizacion = {
     estado: nuevoEstado,
-    atendida_at:
-      nuevoEstado === 'atendida' ? new Date().toISOString() : null,
-  }
-
-  if (tiempoRespuesta !== null) {
-    actualizacion.tiempo_respuesta_seg = tiempoRespuesta
+    atendida_at: nuevoEstado === 'atendida' ? ahora : null,
+    atendida_por: operadorActual?.nombre || null,
+    tiempo_respuesta_seg: tiempoCalculado,
   }
 
   const { error } = await supabase
@@ -85,6 +102,16 @@ async function cargarAlertas() {
     .eq('id', id)
   if (!error) cargarAlertas()
 }
+
+  function cerrarSesion() {
+    const confirmar = window.confirm('¿Cerrar sesión?')
+    if (!confirmar) return
+    sessionStorage.removeItem('dashboard_auth')
+    sessionStorage.removeItem('operador')
+    setAutenticado(false)
+    setOperador(null)
+    cargaInicial.current = true
+  }
 
   useEffect(() => {
     if (!autenticado) return
@@ -108,35 +135,55 @@ async function cargarAlertas() {
   }, [autenticado])
 
   if (!autenticado) {
-    return <Login onLogin={() => setAutenticado(true)} />
+    return (
+      <Login
+        onLogin={(data) => {
+          setOperador(data)
+          setAutenticado(true)
+        }}
+      />
+    )
   }
 
+  const esAdmin = operador?.rol === 'admin'
   const alertasFiltradas = alertas.filter((a) => a.estado === filtro)
 
   return (
     <div className="min-h-screen bg-gray-900 p-4">
 
       <AlertaSonora
-  alerta={alertaActiva}
-  onAtender={async (id, tiempoRespuesta) => {
-    setAlertaActiva(null)
-    await cambiarEstado(id, 'atendida', tiempoRespuesta)
-  }}
-  onPosponer={async (id, tiempoRespuesta) => {
-    setAlertaActiva(null)
-    await cambiarEstado(id, 'pospuesta', tiempoRespuesta)
-  }}
-/>
+        alerta={alertaActiva}
+        onAtender={async (id, tiempoRespuesta) => {
+          setAlertaActiva(null)
+          await cambiarEstado(id, 'atendida', tiempoRespuesta)
+        }}
+        onPosponer={async (id, tiempoRespuesta) => {
+          setAlertaActiva(null)
+          await cambiarEstado(id, 'pospuesta', tiempoRespuesta)
+        }}
+      />
 
       <div className="max-w-4xl mx-auto">
 
         {/* Encabezado */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-white text-2xl font-bold">
-            🖥️ Central de Monitoreo
-          </h1>
-          <div className="flex gap-2">
-
+          <div>
+            <h1 className="text-white text-2xl font-bold">
+              🖥️ Central de Monitoreo
+            </h1>
+            {operador && (
+              <p className="text-gray-400 text-xs mt-1">
+                {operador.nombre} —{' '}
+                <span className={operador.rol === 'admin'
+                  ? 'text-purple-400'
+                  : 'text-blue-400'
+                }>
+                  {operador.rol}
+                </span>
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2 flex-wrap justify-end">
             <button
               onClick={() => setVista('alertas')}
               className={`px-4 py-2 rounded-xl text-sm ${
@@ -153,48 +200,69 @@ async function cargarAlertas() {
               )}
             </button>
 
+            {esAdmin && (
+              <>
+                <button
+                  onClick={() => setVista('locales')}
+                  className={`px-4 py-2 rounded-xl text-sm ${
+                    vista === 'locales'
+                      ? 'bg-white text-gray-900'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  🏪 Marcas
+                </button>
+                <button
+                  onClick={() => setVista('empleados')}
+                  className={`px-4 py-2 rounded-xl text-sm ${
+                    vista === 'empleados'
+                      ? 'bg-white text-gray-900'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  👷 Empleados
+                </button>
+                <button
+                  onClick={() => setVista('operadores')}
+                  className={`px-4 py-2 rounded-xl text-sm ${
+                    vista === 'operadores'
+                      ? 'bg-white text-gray-900'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  👮 Operadores
+                </button>
+              </>
+            )}
 
-            
             <button
-              onClick={() => setVista('locales')}
+              onClick={() => setVista('reportes')}
               className={`px-4 py-2 rounded-xl text-sm ${
-                vista === 'locales'
+                vista === 'reportes'
                   ? 'bg-white text-gray-900'
                   : 'bg-gray-800 text-gray-400'
               }`}
             >
-              🏪 Marcas
-            </button>
-            <button
-              onClick={() => setVista('empleados')}
-              className={`px-4 py-2 rounded-xl text-sm ${
-                vista === 'empleados'
-                  ? 'bg-white text-gray-900'
-                  : 'bg-gray-800 text-gray-400'
-              }`}
-            >
-              👷 Empleados
+              📊 Reportes
             </button>
 
             <button
-            onClick={() => setVista('reportes')}
-            className={`px-4 py-2 rounded-xl text-sm ${
-              vista === 'reportes'
-                ? 'bg-white text-gray-900'
-                : 'bg-gray-800 text-gray-400'
-            }`}
-          >
-            📊 Reportes
-          </button>
+              onClick={cerrarSesion}
+              className="px-4 py-2 rounded-xl text-sm bg-gray-800 text-red-400"
+            >
+              🚪 Salir
+            </button>
           </div>
         </div>
 
         {/* Vistas */}
         {vista === 'reportes' ? (
-        <Reportes />
-        ) : vista === 'empleados' ? (
+          <Reportes />
+        ) : vista === 'operadores' && esAdmin ? (
+          <Operadores />
+        ) : vista === 'empleados' && esAdmin ? (
           <Empleados />
-        ) : vista === 'locales' ? (
+        ) : vista === 'locales' && esAdmin ? (
           <Locales />
         ) : (
           <>
@@ -249,31 +317,32 @@ async function cargarAlertas() {
                     </div>
 
                     <div className="mb-3">
-                    <p className="text-white font-medium">
-                      Local {alerta.local_numero}
-                      {alerta.local_nombre && ` — ${alerta.local_nombre}`}
-                    </p>
-                    {alerta.telefono && (
-                      <p className="text-gray-300 text-sm">
-                        📞 {alerta.telefono}
+                      <p className="text-white font-medium">
+                        Local {alerta.local_numero}
+                        {alerta.local_nombre && ` — ${alerta.local_nombre}`}
                       </p>
-                    )}
-                    {alerta.detalle && (
-                      <p className="text-gray-300 text-sm mt-1">
-                        📝 {alerta.detalle}
-                      </p>
-                    )}
-                    {alerta.tiempo_respuesta_seg != null && (
-                      <p className="text-gray-400 text-xs mt-2">
-                        ⏱️ Respondida en{' '}
-                        {alerta.tiempo_respuesta_seg < 60
-                          ? `${alerta.tiempo_respuesta_seg} seg`
-                          : `${Math.floor(alerta.tiempo_respuesta_seg / 60)} min ${
-                              alerta.tiempo_respuesta_seg % 60
-                            } seg`}
-                      </p>
-                    )}
-                  </div>
+                      {alerta.telefono && (
+                        <p className="text-gray-300 text-sm">
+                          📞 {alerta.telefono}
+                        </p>
+                      )}
+                      {alerta.detalle && (
+                        <p className="text-gray-300 text-sm mt-1">
+                          📝 {alerta.detalle}
+                        </p>
+                      )}
+                      {alerta.tiempo_respuesta_seg != null && (
+                        <p className="text-gray-400 text-xs mt-2">
+                          ⏱️ Respondida en{' '}
+                          {alerta.tiempo_respuesta_seg < 60
+                            ? `${alerta.tiempo_respuesta_seg} seg`
+                            : `${Math.floor(alerta.tiempo_respuesta_seg / 60)} min ${
+                                alerta.tiempo_respuesta_seg % 60
+                              } seg`}
+                          {alerta.atendida_por && ` — por ${alerta.atendida_por}`}
+                        </p>
+                      )}
+                    </div>
 
                     {alerta.estado === 'pendiente' && (
                       <div className="flex gap-2">
