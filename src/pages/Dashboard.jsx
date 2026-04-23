@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import Login from '../components/Login'
 import Locales from './Locales'
 import Empleados from './Empleados'
+import AlertaSonora from '../components/AlertaSonora'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -32,21 +33,56 @@ export default function Dashboard() {
   const [filtro, setFiltro] = useState('pendiente')
   const [cargando, setCargando] = useState(true)
   const [vista, setVista] = useState('alertas')
+  const [alertaActiva, setAlertaActiva] = useState(null)
   const [autenticado, setAutenticado] = useState(
     sessionStorage.getItem('dashboard_auth') === 'true'
   )
+  const alertasAnteriores = useRef([])
 
   async function cargarAlertas() {
     const { data, error } = await supabase
       .from('alertas')
       .select('*')
       .order('created_at', { ascending: false })
-    if (!error) setAlertas(data)
+    if (!error) {
+      const pendientesNuevas = data.filter((a) => a.estado === 'pendiente')
+      const idsAnteriores = alertasAnteriores.current.map((a) => a.id)
+      const nuevas = pendientesNuevas.filter(
+        (a) => !idsAnteriores.includes(a.id)
+      )
+      if (nuevas.length > 0 && alertasAnteriores.current.length > 0) {
+        setAlertaActiva(nuevas[0])
+      }
+      alertasAnteriores.current = pendientesNuevas
+      setAlertas(data)
+    }
     setCargando(false)
   }
 
+  async function cambiarEstado(id, nuevoEstado, tiempoRespuesta = null) {
+  const actualizacion = {
+    estado: nuevoEstado,
+    atendida_at:
+      nuevoEstado === 'atendida' ? new Date().toISOString() : null,
+  }
+
+  if (tiempoRespuesta !== null) {
+    actualizacion.tiempo_respuesta_seg = tiempoRespuesta
+  }
+
+  const { error } = await supabase
+    .from('alertas')
+    .update(actualizacion)
+    .eq('id', id)
+  if (!error) cargarAlertas()
+}
+
   useEffect(() => {
     if (!autenticado) return
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
 
     cargarAlertas()
 
@@ -62,18 +98,6 @@ export default function Dashboard() {
     return () => supabase.removeChannel(canal)
   }, [autenticado])
 
-  async function cambiarEstado(id, nuevoEstado) {
-    const { error } = await supabase
-      .from('alertas')
-      .update({
-        estado: nuevoEstado,
-        atendida_at:
-          nuevoEstado === 'atendida' ? new Date().toISOString() : null,
-      })
-      .eq('id', id)
-    if (!error) cargarAlertas()
-  }
-
   if (!autenticado) {
     return <Login onLogin={() => setAutenticado(true)} />
   }
@@ -82,6 +106,19 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-900 p-4">
+
+      <AlertaSonora
+  alerta={alertaActiva}
+  onAtender={async (id, tiempoRespuesta) => {
+    setAlertaActiva(null)
+    await cambiarEstado(id, 'atendida', tiempoRespuesta)
+  }}
+  onPosponer={async (id, tiempoRespuesta) => {
+    setAlertaActiva(null)
+    await cambiarEstado(id, 'pospuesta', tiempoRespuesta)
+  }}
+/>
+
       <div className="max-w-4xl mx-auto">
 
         {/* Encabezado */}
@@ -181,21 +218,31 @@ export default function Dashboard() {
                     </div>
 
                     <div className="mb-3">
-                      <p className="text-white font-medium">
-                        Local {alerta.local_numero}
-                        {alerta.local_nombre && ` — ${alerta.local_nombre}`}
+                    <p className="text-white font-medium">
+                      Local {alerta.local_numero}
+                      {alerta.local_nombre && ` — ${alerta.local_nombre}`}
+                    </p>
+                    {alerta.telefono && (
+                      <p className="text-gray-300 text-sm">
+                        📞 {alerta.telefono}
                       </p>
-                      {alerta.telefono && (
-                        <p className="text-gray-300 text-sm">
-                          📞 {alerta.telefono}
-                        </p>
-                      )}
-                      {alerta.detalle && (
-                        <p className="text-gray-300 text-sm mt-1">
-                          📝 {alerta.detalle}
-                        </p>
-                      )}
-                    </div>
+                    )}
+                    {alerta.detalle && (
+                      <p className="text-gray-300 text-sm mt-1">
+                        📝 {alerta.detalle}
+                      </p>
+                    )}
+                    {alerta.tiempo_respuesta_seg != null && (
+                      <p className="text-gray-400 text-xs mt-2">
+                        ⏱️ Respondida en{' '}
+                        {alerta.tiempo_respuesta_seg < 60
+                          ? `${alerta.tiempo_respuesta_seg} seg`
+                          : `${Math.floor(alerta.tiempo_respuesta_seg / 60)} min ${
+                              alerta.tiempo_respuesta_seg % 60
+                            } seg`}
+                      </p>
+                    )}
+                  </div>
 
                     {alerta.estado === 'pendiente' && (
                       <div className="flex gap-2">
