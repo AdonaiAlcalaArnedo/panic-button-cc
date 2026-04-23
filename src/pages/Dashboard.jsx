@@ -4,6 +4,7 @@ import Login from '../components/Login'
 import Locales from './Locales'
 import Empleados from './Empleados'
 import AlertaSonora from '../components/AlertaSonora'
+import Reportes from './Reportes'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -39,25 +40,33 @@ export default function Dashboard() {
   )
   const alertasAnteriores = useRef([])
 
-  async function cargarAlertas() {
-    const { data, error } = await supabase
-      .from('alertas')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (!error) {
-      const pendientesNuevas = data.filter((a) => a.estado === 'pendiente')
+  const cargaInicial = useRef(true)
+
+async function cargarAlertas() {
+  const { data, error } = await supabase
+    .from('alertas')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (!error) {
+    const pendientesNuevas = data.filter((a) => a.estado === 'pendiente')
+
+    if (cargaInicial.current) {
+      alertasAnteriores.current = pendientesNuevas
+      cargaInicial.current = false
+    } else {
       const idsAnteriores = alertasAnteriores.current.map((a) => a.id)
       const nuevas = pendientesNuevas.filter(
         (a) => !idsAnteriores.includes(a.id)
       )
-      if (nuevas.length > 0 && alertasAnteriores.current.length > 0) {
+      if (nuevas.length > 0) {
         setAlertaActiva(nuevas[0])
       }
       alertasAnteriores.current = pendientesNuevas
-      setAlertas(data)
     }
-    setCargando(false)
+    setAlertas(data)
   }
+  setCargando(false)
+}
 
   async function cambiarEstado(id, nuevoEstado, tiempoRespuesta = null) {
   const actualizacion = {
@@ -127,6 +136,7 @@ export default function Dashboard() {
             🖥️ Central de Monitoreo
           </h1>
           <div className="flex gap-2">
+
             <button
               onClick={() => setVista('alertas')}
               className={`px-4 py-2 rounded-xl text-sm ${
@@ -136,7 +146,15 @@ export default function Dashboard() {
               }`}
             >
               🚨 Alertas
+              {alertas.filter((a) => a.estado === 'pendiente').length > 0 && (
+                <span className="ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  {alertas.filter((a) => a.estado === 'pendiente').length}
+                </span>
+              )}
             </button>
+
+
+            
             <button
               onClick={() => setVista('locales')}
               className={`px-4 py-2 rounded-xl text-sm ${
@@ -157,11 +175,24 @@ export default function Dashboard() {
             >
               👷 Empleados
             </button>
+
+            <button
+            onClick={() => setVista('reportes')}
+            className={`px-4 py-2 rounded-xl text-sm ${
+              vista === 'reportes'
+                ? 'bg-white text-gray-900'
+                : 'bg-gray-800 text-gray-400'
+            }`}
+          >
+            📊 Reportes
+          </button>
           </div>
         </div>
 
         {/* Vistas */}
-        {vista === 'empleados' ? (
+        {vista === 'reportes' ? (
+        <Reportes />
+        ) : vista === 'empleados' ? (
           <Empleados />
         ) : vista === 'locales' ? (
           <Locales />
