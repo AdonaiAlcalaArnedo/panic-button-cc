@@ -52,6 +52,8 @@ export default function Dashboard() {
   const [audioActivado, setAudioActivado] = useState(false)
   const alertasAnteriores = useRef([])
   const cargaInicial = useRef(true)
+  const [respondiendo, setRespondiendo] = useState(null)
+  const [textoRespuesta, setTextoRespuesta] = useState('')
 
   async function cargarAlertas() {
     const { data, error } = await supabase
@@ -78,30 +80,34 @@ export default function Dashboard() {
     setCargando(false)
   }
 
-  async function cambiarEstado(id, nuevoEstado, tiempoRespuesta = null) {
-    const operadorActual = operador || obtenerOperador()
-    const ahora = new Date().toISOString()
-    const alerta = alertas.find((a) => a.id === id)
+  async function cambiarEstado(id, nuevoEstado, tiempoRespuesta = null, respuesta = null) {
+  const operadorActual = operador || obtenerOperador()
+  const ahora = new Date().toISOString()
+  const alerta = alertas.find((a) => a.id === id)
 
-    const tiempoCalculado = tiempoRespuesta !== null
-      ? tiempoRespuesta
-      : alerta
-        ? Math.floor((new Date() - new Date(alerta.created_at)) / 1000)
-        : null
+  const tiempoCalculado = tiempoRespuesta !== null
+    ? tiempoRespuesta
+    : alerta
+      ? Math.floor((new Date() - new Date(alerta.created_at)) / 1000)
+      : null
 
-    const actualizacion = {
-      estado: nuevoEstado,
-      atendida_at: nuevoEstado === 'atendida' ? ahora : null,
-      atendida_por: operadorActual?.nombre || null,
-      tiempo_respuesta_seg: tiempoCalculado,
-    }
-
-    const { error } = await supabase
-      .from('alertas')
-      .update(actualizacion)
-      .eq('id', id)
-    if (!error) cargarAlertas()
+  const actualizacion = {
+    estado: nuevoEstado,
+    atendida_at: nuevoEstado === 'atendida' ? ahora : null,
+    atendida_por: operadorActual?.nombre || null,
+    tiempo_respuesta_seg: tiempoCalculado,
   }
+
+  if (respuesta !== null) {
+    actualizacion.respuesta = respuesta
+  }
+
+  const { error } = await supabase
+    .from('alertas')
+    .update(actualizacion)
+    .eq('id', id)
+  if (!error) cargarAlertas()
+}
 
   function cerrarSesion() {
     const confirmar = window.confirm('¿Cerrar sesión?')
@@ -157,9 +163,9 @@ export default function Dashboard() {
 
       <AlertaSonora
         alerta={alertaActiva}
-        onAtender={async (id, tiempoRespuesta) => {
+        onAtender={async (id, tiempoRespuesta, respuesta) => {
           setAlertaActiva(null)
-          await cambiarEstado(id, 'atendida', tiempoRespuesta)
+          await cambiarEstado(id, 'atendida', tiempoRespuesta, respuesta)
         }}
         onPosponer={async (id, tiempoRespuesta) => {
           setAlertaActiva(null)
@@ -362,6 +368,11 @@ export default function Dashboard() {
                                 alerta.tiempo_respuesta_seg % 60
                               } seg`}
                           {alerta.atendida_por && ` — por ${alerta.atendida_por}`}
+                          {alerta.respuesta && (
+                            <p className="text-green-400 text-xs mt-1">
+                              💬 Respuesta: {alerta.respuesta}
+                            </p>
+                          )}
                         </p>
                       )}
                     </div>
@@ -382,14 +393,59 @@ export default function Dashboard() {
                         </button>
                       </div>
                     )}
+
                     {alerta.estado === 'pospuesta' && (
-                      <button
-                        onClick={() => cambiarEstado(alerta.id, 'atendida')}
-                        className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
-                      >
-                        ✅ Marcar como atendida
-                      </button>
+                      <>
+                        {respondiendo === alerta.id ? (
+                          <div className="mt-2">
+                            <textarea
+                              className="w-full bg-gray-700 text-white rounded-xl p-3 text-sm mb-2"
+                              rows={2}
+                              placeholder="Respuesta al local (opcional)..."
+                              value={textoRespuesta}
+                              onChange={(e) => setTextoRespuesta(e.target.value)}
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  await cambiarEstado(
+                                    alerta.id,
+                                    'atendida',
+                                    null,
+                                    textoRespuesta.trim() || null
+                                  )
+                                  setRespondiendo(null)
+                                  setTextoRespuesta('')
+                                }}
+                                className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
+                              >
+                                ✅ Confirmar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRespondiendo(null)
+                                  setTextoRespuesta('')
+                                }}
+                                className="bg-gray-700 text-gray-400 text-sm px-4 py-2 rounded-lg"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setRespondiendo(alerta.id)}
+                            className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg"
+                          >
+                            ✅ Marcar como atendida
+                          </button>
+                        )}
+                      </>
                     )}
+                    
+
+
                   </div>
                 ))}
               </div>

@@ -132,9 +132,16 @@ export default function AlertaSonora({ alerta, onAtender, onPosponer }) {
   const audioCtxRef = useRef(null)
   const intervaloRef = useRef(null)
   const [pulsando, setPulsando] = useState(true)
+  const [respuesta, setRespuesta] = useState('')
+  const [mostrarRespuesta, setMostrarRespuesta] = useState(false)
   const [tiempoAlerta, setTiempoAlerta] = useState(0)
 
   useEffect(() => {
+
+     setMostrarRespuesta(false)
+     setRespuesta('')
+
+
     if (!alerta) return
 
     if (audioCtxGlobal && audioCtxGlobal.state !== 'closed') {
@@ -182,6 +189,7 @@ if (audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.close()
       }
     }
+    
   }, [alerta])
 
   function detenerSonido() {
@@ -193,8 +201,12 @@ if (audioCtxRef.current.state === 'suspended') {
   }
 
   function handleAtender() {
-  detenerSonido()
-  onAtender(alerta.id, tiempoAlerta)
+    detenerSonido()
+    setMostrarRespuesta(true)
+}
+
+function confirmarAtender() {  
+  onAtender(alerta.id, tiempoAlerta, respuesta.trim() || null)
 }
 
 function handlePosponer() {
@@ -319,20 +331,59 @@ function handlePosponer() {
 
         {/* Botones de acción */}
         <div className="p-6 pt-0 flex flex-col gap-3">
-          <button
-            onClick={handleAtender}
-            className="w-full py-4 rounded-2xl font-bold text-white text-lg transition-all"
-            style={{ backgroundColor: '#16a34a' }}
-          >
-            ✅ Atender alerta
-          </button>
-          <button
-            onClick={handlePosponer}
-            className="w-full py-4 rounded-2xl font-bold text-lg transition-all"
-            style={{ backgroundColor: '#1e293b', color: '#f59e0b' }}
-          >
-            ⏸️ Posponer
-          </button>
+          {mostrarRespuesta ? (
+            <>
+              <p className="text-gray-400 text-sm mb-1">
+                Respuesta al local (opcional):
+              </p>
+              <textarea
+                className="w-full rounded-xl p-3 text-gray-900 text-sm"
+                style={{ backgroundColor: '#f1f5f9' }}
+                rows={3}
+                placeholder="Ej: Guardia en camino, mantén la calma..."
+                value={respuesta}
+                onChange={(e) => setRespuesta(e.target.value)}
+                autoFocus
+              />
+              <button
+                onClick={confirmarAtender}
+                className="w-full py-4 rounded-2xl font-bold text-white text-lg"
+                style={{ backgroundColor: '#16a34a' }}
+              >
+                ✅ Confirmar atención
+              </button>
+              <button
+                onClick={() => setMostrarRespuesta(false)}
+                className="w-full py-3 rounded-2xl text-sm"
+                style={{ backgroundColor: '#1e293b', color: '#94a3b8' }}
+              >
+                ← Volver
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleAtender}
+                className="w-full py-4 rounded-2xl font-bold text-white text-lg"
+                style={{ backgroundColor: '#16a34a' }}
+              >
+                ✅ Atender alerta
+              </button>
+
+              <button
+                onClick={() => {
+                  detenerSonido()
+                  onPosponer(alerta.id, tiempoAlerta)
+                }}
+                className="w-full py-4 rounded-2xl font-bold text-lg"
+                style={{ backgroundColor: '#1e293b', color: '#f59e0b' }}
+              >
+                ⏸️ Posponer sin responder
+              </button>
+              
+
+            </>
+          )}
         </div>
       </div>
     </div>

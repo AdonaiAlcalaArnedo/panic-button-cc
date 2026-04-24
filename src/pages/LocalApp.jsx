@@ -28,6 +28,21 @@ export default function LocalApp() {
   const [tipoSeleccionado, setTipoSeleccionado] = useState(null)
   const [detalle, setDetalle] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [alertaEnviada, setAlertaEnviada] = useState(null)
+  const [sinConexion, setSinConexion] = useState(false)
+
+  useEffect(() => {
+  function actualizarConexion() {
+    setSinConexion(!navigator.onLine)
+  }
+  window.addEventListener('online', actualizarConexion)
+  window.addEventListener('offline', actualizarConexion)
+  actualizarConexion()
+  return () => {
+    window.removeEventListener('online', actualizarConexion)
+    window.removeEventListener('offline', actualizarConexion)
+  }
+}, [])
 
   useEffect(() => {
     async function iniciar() {
@@ -67,36 +82,52 @@ export default function LocalApp() {
     iniciar()
   }, [])
 
-  async function enviarAlerta() {
-  setEnviando(true)
+    async function enviarAlerta() {
+      setEnviando(true)
 
-  const { data: localActivo } = await supabase
-    .from('locales')
-    .select('activo')
-    .eq('token', localData.token)
-    .single()
+      const { data, error } = await supabase.rpc('insertar_alerta', {
+        p_token: localData.token,
+        p_tipo: tipoSeleccionado.tipo,
+        p_detalle: detalle || null,
+      })
 
-  if (!localActivo || !localActivo.activo) {
-    localStorage.removeItem('local_data')
-    setEnviando(false)
-    setPaso('sin_acceso')
-    return
-  }
+      setEnviando(false)
 
-  const { error } = await supabase.from('alertas').insert({
-    local_numero: localData.numero,
-    local_nombre: localData.nombre,
-    tipo: tipoSeleccionado.tipo,
-    detalle: detalle,
-    estado: 'pendiente',
-  })
-  setEnviando(false)
-  if (error) {
-    alert('Error al enviar. Intenta de nuevo.')
-  } else {
-    setPaso('confirmacion')
-  }
-}
+      if (error || data?.error) {
+        if (data?.mensaje === 'Token inválido o local inactivo') {
+          localStorage.removeItem('local_data')
+          setPaso('sin_acceso')
+        } else {
+          alert('Error al enviar. Intenta de nuevo.')
+        }
+        return
+      }
+
+      setAlertaEnviada({ id: data.id, created_at: data.created_at })
+      setPaso('confirmacion')
+      escucharRespuesta(data.id)
+    }
+
+    function escucharRespuesta(alertaId) {
+      const canal = supabase
+        .channel('respuesta-' + alertaId)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'alertas',
+            filter: `id=eq.${alertaId}`,
+          },
+          (payload) => {
+            setAlertaEnviada(payload.new)
+            if (payload.new.estado === 'atendida') {
+              supabase.removeChannel(canal)
+            }
+          }
+        )
+        .subscribe()
+        }
 
   function reiniciar() {
     setPaso('inicio')
@@ -149,26 +180,36 @@ export default function LocalApp() {
   }
 
   // Confirmación enviada
-  if (paso === 'confirmacion') {
-    return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
-        <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-white text-2xl font-bold mb-2">Alerta enviada</h2>
-        <p className="text-gray-400 text-center mb-2">
-          Central de Monitoreo ha sido notificada. Mantén la calma.
-        </p>
-        <p className="text-gray-500 text-sm mb-8">
-          Local {localData.numero} — {localData.nombre}
-        </p>
-        <button
-          onClick={reiniciar}
-          className="bg-gray-700 text-white px-8 py-3 rounded-xl"
-        >
-          Nueva alerta
-        </button>
-      </div>
-    )
-  }
+      if (paso === 'confirmacion') {
+      return (
+        <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
+          <div className="text-6xl mb-4">✅</div>
+          <h2 className="text-white text-2xl font-bold mb-2">Alerta enviada</h2>
+          <p className="text-gray-400 text-center mb-2">
+            Central de Monitoreo ha sido notificada. Mantén la calma.
+          </p>
+          <p className="text-gray-500 text-sm mb-8">
+            Local {localData.numero} — {localData.nombre}
+          </p>
+
+          {alertaEnviada?.respuesta && (
+            <div className="bg-green-900 border border-green-600 rounded-2xl p-4 mb-8 w-full max-w-sm">
+              <p className="text-green-400 text-sm font-bold mb-1">
+                💬 Respuesta de Central de Monitoreo:
+              </p>
+              <p className="text-white text-sm">{alertaEnviada.respuesta}</p>
+            </div>
+          )}
+
+          <button
+            onClick={reiniciar}
+            className="bg-gray-700 text-white px-8 py-3 rounded-xl"
+          >
+            Nueva alerta
+          </button>
+        </div>
+      )
+    }
 
   // Detalle de alerta
   if (paso === 'detalle') {
@@ -211,6 +252,14 @@ export default function LocalApp() {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center p-6">
       <div className="w-full max-w-sm">
+  {sinConexion && (
+    <div className="bg-red-900 border border-red-600 rounded-2xl p-4 mb-4 text-center">
+      <p className="text-red-400 font-bold text-sm">⚠️ Sin conexión a internet</p>
+      <p className="text-red-300 text-xs mt-1">
+        No es posible enviar alertas. Verifica tu WiFi o datos móviles.
+      </p>
+    </div>
+  )}
         <div className="text-center mb-2 mt-8">
           {localData.etapa === 'empleado' ? (
         <>
