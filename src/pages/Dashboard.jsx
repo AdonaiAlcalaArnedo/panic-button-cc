@@ -6,6 +6,7 @@ import Empleados from './Empleados'
 import AlertaSonora, { desbloquearAudio } from '../components/AlertaSonora'
 import Reportes from './Reportes'
 import Operadores from './Operadores'
+import Estadisticas from './Estadisticas'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -279,12 +280,24 @@ export default function Dashboard() {
             >
               📊 Reportes
             </button>
+            <button
+              onClick={() => setVista('estadisticas')}
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
+                vista === 'estadisticas'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              📈 Estadísticas
+            </button>
           </div>
         </div>
 
         {/* Vistas */}
-        {vista === 'reportes' ? (
-          <Reportes />
+        {vista === 'estadisticas' ? (
+          <Estadisticas />
+        ) : vista === 'reportes' ? (
+          <Reportes />        
         ) : vista === 'operadores' && esAdmin ? (
           <Operadores />
         ) : vista === 'empleados' && esAdmin ? (
