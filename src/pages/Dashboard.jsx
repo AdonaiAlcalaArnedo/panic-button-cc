@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import Login from '../components/Login'
 import Locales from './Locales'
 import Empleados from './Empleados'
-import AlertaSonora from '../components/AlertaSonora'
+import AlertaSonora, { desbloquearAudio } from '../components/AlertaSonora'
 import Reportes from './Reportes'
 import Operadores from './Operadores'
 
@@ -49,6 +49,7 @@ export default function Dashboard() {
     sessionStorage.getItem('dashboard_auth') === 'true'
   )
   const [operador, setOperador] = useState(obtenerOperador())
+  const [audioActivado, setAudioActivado] = useState(false)
   const alertasAnteriores = useRef([])
   const cargaInicial = useRef(true)
 
@@ -78,30 +79,29 @@ export default function Dashboard() {
   }
 
   async function cambiarEstado(id, nuevoEstado, tiempoRespuesta = null) {
-  const operadorActual = operador || obtenerOperador()
+    const operadorActual = operador || obtenerOperador()
+    const ahora = new Date().toISOString()
+    const alerta = alertas.find((a) => a.id === id)
 
-  const ahora = new Date().toISOString()
-  const alerta = alertas.find((a) => a.id === id)
+    const tiempoCalculado = tiempoRespuesta !== null
+      ? tiempoRespuesta
+      : alerta
+        ? Math.floor((new Date() - new Date(alerta.created_at)) / 1000)
+        : null
 
-  const tiempoCalculado = tiempoRespuesta !== null
-    ? tiempoRespuesta
-    : alerta
-      ? Math.floor((new Date() - new Date(alerta.created_at)) / 1000)
-      : null
+    const actualizacion = {
+      estado: nuevoEstado,
+      atendida_at: nuevoEstado === 'atendida' ? ahora : null,
+      atendida_por: operadorActual?.nombre || null,
+      tiempo_respuesta_seg: tiempoCalculado,
+    }
 
-  const actualizacion = {
-    estado: nuevoEstado,
-    atendida_at: nuevoEstado === 'atendida' ? ahora : null,
-    atendida_por: operadorActual?.nombre || null,
-    tiempo_respuesta_seg: tiempoCalculado,
+    const { error } = await supabase
+      .from('alertas')
+      .update(actualizacion)
+      .eq('id', id)
+    if (!error) cargarAlertas()
   }
-
-  const { error } = await supabase
-    .from('alertas')
-    .update(actualizacion)
-    .eq('id', id)
-  if (!error) cargarAlertas()
-}
 
   function cerrarSesion() {
     const confirmar = window.confirm('¿Cerrar sesión?')
@@ -134,6 +134,10 @@ export default function Dashboard() {
     return () => supabase.removeChannel(canal)
   }, [autenticado])
 
+  useEffect(() => {
+    if (audioActivado) desbloquearAudio()
+  }, [audioActivado])
+
   if (!autenticado) {
     return (
       <Login
@@ -163,30 +167,54 @@ export default function Dashboard() {
         }}
       />
 
+      {/* Banner activación audio */}
+      {!audioActivado && (
+        <div
+          onClick={() => setAudioActivado(true)}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 cursor-pointer"
+        >
+          <div className="bg-yellow-500 text-gray-900 px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-3 shadow-xl animate-bounce">
+            <span className="text-xl">🔔</span>
+            Toca aquí para activar las alertas sonoras
+            <span className="text-xl">🔔</span>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto">
 
         {/* Encabezado */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-white text-2xl font-bold">
-              🖥️ Central de Monitoreo
-            </h1>
-            {operador && (
-              <p className="text-gray-400 text-xs mt-1">
-                {operador.nombre} —{' '}
-                <span className={operador.rol === 'admin'
-                  ? 'text-purple-400'
-                  : 'text-blue-400'
-                }>
-                  {operador.rol}
-                </span>
-              </p>
-            )}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-white text-xl font-bold">
+                🖥️ Central de Monitoreo
+              </h1>
+              {operador && (
+                <p className="text-gray-400 text-xs mt-1">
+                  {operador.nombre} —{' '}
+                  <span className={operador.rol === 'admin'
+                    ? 'text-purple-400'
+                    : 'text-blue-400'
+                  }>
+                    {operador.rol}
+                  </span>
+                </p>
+              )}
+            </div>
+            <button
+              onClick={cerrarSesion}
+              className="px-3 py-2 rounded-xl text-sm bg-gray-800 text-red-400"
+            >
+              🚪 Salir
+            </button>
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">
+
+          {/* Pestañas en grid responsive */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <button
               onClick={() => setVista('alertas')}
-              className={`px-4 py-2 rounded-xl text-sm ${
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
                 vista === 'alertas'
                   ? 'bg-white text-gray-900'
                   : 'bg-gray-800 text-gray-400'
@@ -204,7 +232,7 @@ export default function Dashboard() {
               <>
                 <button
                   onClick={() => setVista('locales')}
-                  className={`px-4 py-2 rounded-xl text-sm ${
+                  className={`px-3 py-2 rounded-xl text-sm text-center ${
                     vista === 'locales'
                       ? 'bg-white text-gray-900'
                       : 'bg-gray-800 text-gray-400'
@@ -214,7 +242,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setVista('empleados')}
-                  className={`px-4 py-2 rounded-xl text-sm ${
+                  className={`px-3 py-2 rounded-xl text-sm text-center ${
                     vista === 'empleados'
                       ? 'bg-white text-gray-900'
                       : 'bg-gray-800 text-gray-400'
@@ -224,7 +252,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setVista('operadores')}
-                  className={`px-4 py-2 rounded-xl text-sm ${
+                  className={`px-3 py-2 rounded-xl text-sm text-center ${
                     vista === 'operadores'
                       ? 'bg-white text-gray-900'
                       : 'bg-gray-800 text-gray-400'
@@ -237,20 +265,13 @@ export default function Dashboard() {
 
             <button
               onClick={() => setVista('reportes')}
-              className={`px-4 py-2 rounded-xl text-sm ${
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
                 vista === 'reportes'
                   ? 'bg-white text-gray-900'
                   : 'bg-gray-800 text-gray-400'
               }`}
             >
               📊 Reportes
-            </button>
-
-            <button
-              onClick={cerrarSesion}
-              className="px-4 py-2 rounded-xl text-sm bg-gray-800 text-red-400"
-            >
-              🚪 Salir
             </button>
           </div>
         </div>
@@ -267,7 +288,8 @@ export default function Dashboard() {
         ) : (
           <>
             {/* Filtros de alertas */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
+
               {['pendiente', 'atendida', 'pospuesta'].map((estado) => (
                 <button
                   key={estado}

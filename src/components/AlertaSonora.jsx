@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 
+let audioCtxGlobal = null
+
+export function desbloquearAudio() {
+  if (!audioCtxGlobal) {
+    audioCtxGlobal = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  if (audioCtxGlobal.state === 'suspended') {
+    audioCtxGlobal.resume()
+  }
+}
+
+document.addEventListener('click', desbloquearAudio, { once: false })
+document.addEventListener('keydown', desbloquearAudio, { once: false })
+
 const EMOJIS = {
   seguridad: '🚨',
   salud: '🏥',
@@ -17,29 +31,101 @@ const COLORES_BORDE = {
 }
 
 function crearSonidoAlerta(audioCtx, tipo) {
-  const frecuencias = {
-    seguridad: [880, 660, 880, 660],
-    salud: [523, 659, 784, 659],
-    siniestro: [440, 554, 440, 554],
-    mantenimiento: [392, 494, 392, 494],
-    asistencia: [523, 587, 659, 587],
-  }
-  const freqs = frecuencias[tipo] || frecuencias.seguridad
+  const ahora = audioCtx.currentTime
 
-  freqs.forEach((freq, i) => {
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.frequency.value = freq
-    osc.type = 'sine'
-    const inicio = audioCtx.currentTime + i * 0.25
-    gain.gain.setValueAtTime(0, inicio)
-    gain.gain.linearRampToValueAtTime(0.3, inicio + 0.05)
-    gain.gain.linearRampToValueAtTime(0, inicio + 0.2)
-    osc.start(inicio)
-    osc.stop(inicio + 0.25)
-  })
+  if (tipo === 'seguridad') {
+    // Sirena urgente — sube y baja rápido
+    for (let i = 0; i < 5; i++) {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.type = 'sine'
+      const t = ahora + i * 0.6
+      osc.frequency.setValueAtTime(600, t)
+      osc.frequency.linearRampToValueAtTime(900, t + 0.2)
+      osc.frequency.linearRampToValueAtTime(600, t + 0.4)
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.8, t + 0.05)
+      gain.gain.linearRampToValueAtTime(0.8, t + 0.35)
+      gain.gain.linearRampToValueAtTime(1, t + 0.4)
+      osc.start(t)
+      osc.stop(t + 0.4)
+    }
+
+  } else if (tipo === 'salud') {
+    // Monitor médico — bip suave y claro
+    for (let i = 0; i < 2; i++) {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = 880
+      const t = ahora + i * 0.6
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.3, t + 0.05)
+      gain.gain.linearRampToValueAtTime(0.3, t + 0.15)
+      gain.gain.linearRampToValueAtTime(0, t + 0.25)
+      osc.start(t)
+      osc.stop(t + 0.3)
+    }
+
+  } else if (tipo === 'siniestro') {
+    // Alarma de incendio — intermitente fuerte
+    for (let i = 0; i < 6; i++) {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.type = 'square'
+      osc.frequency.value = i % 2 === 0 ? 660 : 440
+      const t = ahora + i * 0.2
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.35, t + 0.02)
+      gain.gain.linearRampToValueAtTime(0.35, t + 0.15)
+      gain.gain.linearRampToValueAtTime(0, t + 0.18)
+      osc.start(t)
+      osc.stop(t + 0.2)
+    }
+
+  } else if (tipo === 'mantenimiento') {
+    // Doble bip neutro
+    for (let i = 0; i < 2; i++) {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = 520
+      const t = ahora + i * 0.3
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.4, t + 0.03)
+      gain.gain.linearRampToValueAtTime(0.4, t + 0.18)
+      gain.gain.linearRampToValueAtTime(0, t + 0.22)
+      osc.start(t)
+      osc.stop(t + 0.3)
+    }
+
+  } else if (tipo === 'asistencia') {
+    // Melodía ascendente amigable
+    const notas = [523, 659, 784, 1047]
+    notas.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const t = ahora + i * 0.18
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.25, t + 0.04)
+      gain.gain.linearRampToValueAtTime(0.25, t + 0.14)
+      gain.gain.linearRampToValueAtTime(0, t + 0.18)
+      osc.start(t)
+      osc.stop(t + 0.2)
+    })
+  }
 }
 
 export default function AlertaSonora({ alerta, onAtender, onPosponer }) {
@@ -51,7 +137,15 @@ export default function AlertaSonora({ alerta, onAtender, onPosponer }) {
   useEffect(() => {
     if (!alerta) return
 
-    audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+    if (audioCtxGlobal && audioCtxGlobal.state !== 'closed') {
+  audioCtxRef.current = audioCtxGlobal
+} else {
+  audioCtxGlobal = new (window.AudioContext || window.webkitAudioContext)()
+  audioCtxRef.current = audioCtxGlobal
+}
+if (audioCtxRef.current.state === 'suspended') {
+  audioCtxRef.current.resume()
+}
 
     function tocarSonido() {
       if (audioCtxRef.current) {

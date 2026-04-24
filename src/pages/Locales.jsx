@@ -262,15 +262,15 @@ export default function Locales() {
       )}
 
       {/* Filtros */}
-      <div className="no-print flex gap-3 mb-4">
+      <div className="no-print flex flex-col gap-2 mb-4 sm:flex-row">
         <input
-          className="bg-gray-800 text-white rounded-xl px-4 py-2 flex-1"
+          className="bg-gray-800 text-white rounded-xl px-4 py-2 w-full"
           placeholder="Buscar por nombre o número..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
         <select
-          className="bg-gray-800 text-white rounded-xl px-4 py-2"
+          className="bg-gray-800 text-white rounded-xl px-4 py-2 w-full sm:w-auto"
           value={filtroEtapa}
           onChange={(e) => setFiltroEtapa(e.target.value)}
         >

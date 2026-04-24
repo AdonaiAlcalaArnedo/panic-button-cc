@@ -125,12 +125,12 @@ export default function Empleados() {
 
       {/* Encabezado */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-white text-xl font-bold">
+        <h2 className="text-white text-lg font-bold">
           👷 Empleados — {empleados.length} registrados
         </h2>
         <button
           onClick={() => setCreando(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
+          className="bg-green-600 text-white px-3 py-2 rounded-xl text-sm whitespace-nowrap"
         >
           + Nuevo empleado
         </button>
@@ -209,18 +209,19 @@ export default function Empleados() {
                 </div>
                 <p className="text-gray-400 text-sm">{emp.piso}</p>
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex gap-1 flex-shrink-0">
                 {emp.activo && (
                   <button
                     onClick={() => setEmpleadoQR(emp)}
-                    className="bg-gray-700 text-white text-sm px-3 py-2 rounded-xl"
+                    className="bg-gray-700 text-white text-xs px-2 py-2 rounded-xl"
                   >
-                    Ver QR
+                    QR
                   </button>
                 )}
                 <button
                   onClick={() => toggleActivo(emp)}
-                  className={`text-sm px-3 py-2 rounded-xl ${
+                  className={`text-xs px-2 py-2 rounded-xl whitespace-nowrap ${
                     emp.activo
                       ? 'bg-red-900 text-red-400'
                       : 'bg-green-900 text-green-400'
@@ -230,11 +231,14 @@ export default function Empleados() {
                 </button>
                 <button
                   onClick={() => eliminarEmpleado(emp)}
-                  className="bg-gray-700 text-red-400 text-sm px-3 py-2 rounded-xl"
+                  className="bg-gray-700 text-red-400 text-xs px-2 py-2 rounded-xl"
                 >
                   🗑️
                 </button>
               </div>
+              
+
+
             </div>
           ))}
         </div>
