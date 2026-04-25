@@ -402,7 +402,9 @@ export default function Estadisticas() {
                     cx="50%"
                     cy="55%"
                     outerRadius={65}
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) =>
+                        `${name} ${(percent * 100).toFixed(0)}%`
+                    }
                     labelLine={false}
                     >
                   {porTipo.map((entry, i) => (
