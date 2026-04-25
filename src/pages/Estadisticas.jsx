@@ -419,9 +419,12 @@ export default function Estadisticas() {
                   }}
                 />
                 <Legend
-                  formatter={(value) => (
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ paddingTop: '20px', fontSize: 12 }}
+                formatter={(value) => (
                     <span style={{ color: '#9ca3af', fontSize: 12 }}>{value}</span>
-                  )}
+                )}
                 />
               </PieChart>
             </ResponsiveContainer>
