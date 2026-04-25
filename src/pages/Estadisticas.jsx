@@ -322,7 +322,7 @@ export default function Estadisticas() {
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: '#9ca3af', fontSize: 10 }}
+                  tick={{ fill: '#B9CDE5', fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   allowDecimals={false}
