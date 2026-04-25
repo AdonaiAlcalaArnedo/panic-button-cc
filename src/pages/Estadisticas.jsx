@@ -338,7 +338,8 @@ export default function Estadisticas() {
                   }}
                   cursor={{ fill: '#374151' }}
                 />
-                <Bar dataKey="total" radius={[6, 6, 0, 0]} fill="#6366f1" />
+                <Bar dataKey="total" radius={[6, 6, 0, 0]} fill="#B9CDE5" />
+                
               </BarChart>
             </ResponsiveContainer>
           </div>
