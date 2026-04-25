@@ -1,6 +1,6 @@
 {
-  "name": "Botón de Pánico — Centro Comercial",
-  "short_name": "Pánico CC",
+  "name": "Alerta Paseo! — Centro Comercial Paseo de la Castellana",
+  "short_name": "Alerta Paseo!",
   "description": "Sistema de alertas para locales del centro comercial",
   "start_url": "/",
   "display": "standalone",
