@@ -401,7 +401,7 @@ export default function Estadisticas() {
                     nameKey="name"
                     cx="50%"
                     cy="55%"
-                    outerRadius={80}
+                    outerRadius={75}
                     label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
                     >
