@@ -224,21 +224,35 @@ function handlePosponer() {
   const color = COLORES_BORDE[alerta.tipo] || '#ef4444'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
+    <div className="fixed z-50 flex items-center justify-center p-4"
+  style={{ 
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    minHeight: '100vh',
+    minHeight: '100dvh',
+  }}>
 
       {/* Fondo pulsante */}
+      
       <div
-        className="absolute inset-0 transition-opacity duration-300"
         style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: color,
           opacity: pulsando ? 0.08 : 0.03,
+          transition: 'opacity 0.3s',
+          zIndex: 49,
+          pointerEvents: 'none',
         }}
       />
 
       {/* Modal principal */}
-      <div
-        className="relative w-full max-w-md rounded-3xl overflow-hidden"
+      {/* Modal principal */}
+<div
+  style={{ position: 'relative', zIndex: 51, width: '100%', maxWidth: '28rem', borderRadius: '1.5rem', overflow: 'hidden' }}
         style={{
           backgroundColor: '#0f172a',
           border: `3px solid ${color}`,
