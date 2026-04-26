@@ -7,6 +7,7 @@ import AlertaSonora, { desbloquearAudio } from '../components/AlertaSonora'
 import Reportes from './Reportes'
 import Operadores from './Operadores'
 import Estadisticas from './Estadisticas'
+import RespuestasRapidas from './RespuestasRapidas'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -271,6 +272,17 @@ export default function Dashboard() {
             )}
 
             <button
+              onClick={() => setVista('respuestas')}
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
+                vista === 'respuestas'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              💬 Respuestas
+            </button>
+
+            <button
               onClick={() => setVista('reportes')}
               className={`px-3 py-2 rounded-xl text-sm text-center ${
                 vista === 'reportes'
@@ -294,7 +306,9 @@ export default function Dashboard() {
         </div>
 
         {/* Vistas */}
-        {vista === 'estadisticas' ? (
+        {vista === 'respuestas' && esAdmin ? (
+          <RespuestasRapidas />
+        ) : vista === 'estadisticas' ? (
           <Estadisticas />
         ) : vista === 'reportes' ? (
           <Reportes />        
@@ -409,6 +423,7 @@ export default function Dashboard() {
 
                     {alerta.estado === 'pospuesta' && (
                       <>
+
                         {respondiendo === alerta.id ? (
                           <div className="mt-2">
                             <textarea
@@ -456,6 +471,25 @@ export default function Dashboard() {
                         )}
                       </>
                     )}
+
+                    {alerta.estado === 'atendida' && !alerta.falsa_alarma && (
+                    <button
+                      onClick={async () => {
+                        const ok = window.confirm('¿Marcar esta alerta como falsa alarma?')
+                        if (!ok) return
+                        await supabase.from('alertas').update({ falsa_alarma: true }).eq('id', alerta.id)
+                        cargarAlertas()
+                      }}
+                      className="bg-gray-700 text-orange-400 text-xs px-3 py-1 rounded-lg mt-2"
+                    >
+                      ⚠️ Marcar como falsa alarma
+                    </button>
+                  )}
+                  {alerta.falsa_alarma && (
+                    <span className="text-orange-400 text-xs mt-2 inline-block">
+                      ⚠️ Falsa alarma registrada
+                    </span>
+                  )}
                     
 
 

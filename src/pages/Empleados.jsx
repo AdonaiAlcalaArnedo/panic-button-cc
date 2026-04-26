@@ -216,7 +216,7 @@ export default function Empleados() {
                     onClick={() => setEmpleadoQR(emp)}
                     className="bg-gray-700 text-white text-xs px-2 py-2 rounded-xl"
                   >
-                    QR
+                    Ver QR
                   </button>
                 )}
                 <button

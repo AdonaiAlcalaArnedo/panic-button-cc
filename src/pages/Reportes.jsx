@@ -41,6 +41,7 @@ function exportarExcel(alertas) {
       : 'Sin respuesta',
       'Atendida por': a.atendida_por || '',
     'Fecha Atención': a.atendida_at ? formatFecha(a.atendida_at) : '',
+    'Falsa Alarma': a.falsa_alarma ? 'Si' : 'No',
   }))
 
   const hoja = XLSX.utils.json_to_sheet(filas)
@@ -267,16 +268,16 @@ export default function Reportes() {
                     >
                       {alerta.tipo}
                     </span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        alerta.estado === 'atendida'
-                          ? 'bg-green-900 text-green-400'
-                          : alerta.estado === 'pospuesta'
-                          ? 'bg-yellow-900 text-yellow-400'
-                          : 'bg-red-900 text-red-400'
-                      }`}
-                    >
-                      {alerta.estado}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      alerta.falsa_alarma
+                        ? 'bg-orange-900 text-orange-400'
+                        : alerta.estado === 'atendida'
+                        ? 'bg-green-900 text-green-400'
+                        : alerta.estado === 'pospuesta'
+                        ? 'bg-yellow-900 text-yellow-400'
+                        : 'bg-red-900 text-red-400'
+                    }`}>
+                      {alerta.falsa_alarma ? 'Falsa alarma' : alerta.estado}
                     </span>
                   </div>
                   <span className="text-gray-500 text-xs">

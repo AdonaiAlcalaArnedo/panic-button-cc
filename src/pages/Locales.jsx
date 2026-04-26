@@ -206,7 +206,7 @@ export default function Locales() {
             onChange={(e) => setNuevoNumero(e.target.value)}
           />
           <label className="text-gray-400 text-sm mb-1 block">
-            Nombre del local *
+            Nombre de la marca *
           </label>
           <input
             className="bg-gray-700 text-white rounded-xl p-3 w-full mb-4"
@@ -265,7 +265,7 @@ export default function Locales() {
       <div className="no-print flex flex-col gap-2 mb-4 sm:flex-row">
         <input
           className="bg-gray-800 text-white rounded-xl px-4 py-2 w-full"
-          placeholder="Buscar por nombre o número..."
+          placeholder="Buscar por nombre o número del local"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />

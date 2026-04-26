@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import * as XLSX from 'xlsx'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend
 } from 'recharts'
-import * as XLSX from 'xlsx'
 
 const COLORES_TIPO = {
   seguridad: '#ef4444',
@@ -50,25 +50,37 @@ export default function Estadisticas() {
     setCargando(false)
   }
 
+  if (cargando) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-gray-400">Cargando estadísticas...</p>
+      </div>
+    )
+  }
+
   // Turno actual — últimas 8 horas
   const ahora = new Date()
-  const hace8h = new Date(ahora - 8 * 60 * 60 * 1000)
-  const alertasTurno = alertas.filter(
-    (a) => new Date(a.created_at) >= hace8h
-  )
+  const inicioDia = new Date(ahora)
+        inicioDia.setHours(7, 0, 0, 0)
+  const alertasTurno = alertas.filter((a) => new Date(a.created_at) >= inicioDia)
   const pendientesTurno = alertasTurno.filter((a) => a.estado === 'pendiente').length
   const atendidasTurno = alertasTurno.filter((a) => a.estado === 'atendida').length
+  const falsasTurno = alertasTurno.filter((a) => a.falsa_alarma).length
   const tiempoPromedioTurno = (() => {
-    const conTiempo = alertasTurno.filter((a) => a.tiempo_respuesta_seg != null)
+    const conTiempo = alertasTurno.filter((a) => a.tiempo_respuesta_seg != null && !a.falsa_alarma)
     if (!conTiempo.length) return null
     return Math.round(conTiempo.reduce((acc, a) => acc + a.tiempo_respuesta_seg, 0) / conTiempo.length)
   })()
 
-  // Ranking operadores
+  // Período seleccionado
+  const alertasFiltradas = alertas
+  const falsasAlarmas = alertasFiltradas.filter((a) => a.falsa_alarma).length
+
+  // Ranking operadores (excluye falsas alarmas)
   const rankingOperadores = (() => {
     const mapa = {}
     alertas
-      .filter((a) => a.atendida_por && a.tiempo_respuesta_seg != null)
+      .filter((a) => a.atendida_por && a.tiempo_respuesta_seg != null && !a.falsa_alarma)
       .forEach((a) => {
         if (!mapa[a.atendida_por]) {
           mapa[a.atendida_por] = { nombre: a.atendida_por, tiempos: [], total: 0 }
@@ -86,144 +98,125 @@ export default function Estadisticas() {
 
   // Picos por hora
   const picosPorHora = (() => {
-    const horas = Array.from({ length: 24 }, (_, i) => ({
-      hora: `${i}:00`,
-      total: 0,
-    }))
-    alertas.forEach((a) => {
-      const hora = new Date(a.created_at).getHours()
-      horas[hora].total++
+    const horas = Array.from({ length: 24 }, (_, i) => ({ hora: `${i}:00`, total: 0 }))
+    alertas.filter((a) => !a.falsa_alarma).forEach((a) => {
+        const hora = new Date(a.created_at).getHours()
+        horas[hora].total++
     })
-    return horas.filter((h) => h.total > 0)
-  })()
+    return horas.filter((h) => {
+        const horaNum = parseInt(h.hora)
+        return horaNum >= 7 && horaNum <= 23
+    })
+    })()
 
-  // Picos por día de semana
+  // Picos por día
   const picosPorDia = (() => {
     const dias = DIAS.map((d) => ({ dia: d, total: 0 }))
-    alertas.forEach((a) => {
+    alertas.filter((a) => !a.falsa_alarma).forEach((a) => {
       const dia = new Date(a.created_at).getDay()
       dias[dia].total++
     })
     return dias
   })()
 
-  // Por tipo
+  // Por tipo (excluye falsas alarmas)
   const porTipo = Object.keys(COLORES_TIPO).map((tipo) => ({
     name: tipo,
-    value: alertas.filter((a) => a.tipo === tipo).length,
+    value: alertas.filter((a) => a.tipo === tipo && !a.falsa_alarma).length,
     color: COLORES_TIPO[tipo],
   })).filter((t) => t.value > 0)
 
-    function exportarEstadisticas() {
+  function exportarEstadisticas() {
     const libro = XLSX.utils.book_new()
 
-    // Hoja 1 — Resumen del turno
     const turnoData = [
-        ['Métrica', 'Valor'],
-        ['Total alertas turno (8h)', alertasTurno.length],
-        ['Atendidas en turno', atendidasTurno],
-        ['Pendientes en turno', pendientesTurno],
-        ['Tiempo promedio turno', formatTiempo(tiempoPromedioTurno)],
+      ['Métrica', 'Valor'],
+      ['Total alertas turno (8h)', alertasTurno.length],
+      ['Atendidas en turno', atendidasTurno],
+      ['Pendientes en turno', pendientesTurno],
+      ['Falsas alarmas en turno', falsasTurno],
+      ['Tiempo promedio turno', formatTiempo(tiempoPromedioTurno)],
     ]
     const hojaTurno = XLSX.utils.aoa_to_sheet(turnoData)
     hojaTurno['!cols'] = [{ wch: 30 }, { wch: 20 }]
     XLSX.utils.book_append_sheet(libro, hojaTurno, 'Turno Actual')
 
-    // Hoja 2 — Ranking operadores
     const rankingData = [
-        ['Posición', 'Operador', 'Alertas Atendidas', 'Tiempo Promedio'],
-        ...rankingOperadores.map((op, i) => [
-        i + 1,
-        op.nombre,
-        op.total,
-        formatTiempo(op.promedio),
-        ]),
+      ['Posición', 'Operador', 'Alertas Atendidas', 'Tiempo Promedio'],
+      ...rankingOperadores.map((op, i) => [i + 1, op.nombre, op.total, formatTiempo(op.promedio)]),
     ]
     const hojaRanking = XLSX.utils.aoa_to_sheet(rankingData)
     hojaRanking['!cols'] = [{ wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 20 }]
     XLSX.utils.book_append_sheet(libro, hojaRanking, 'Ranking Operadores')
 
-    // Hoja 3 — Picos por hora
     const horasData = [
-        ['Hora', 'Total Alertas'],
-        ...Array.from({ length: 24 }, (_, i) => {
+      ['Hora', 'Total Alertas'],
+      ...Array.from({ length: 24 }, (_, i) => {
         const total = alertas.filter(
-            (a) => new Date(a.created_at).getHours() === i
+          (a) => new Date(a.created_at).getHours() === i && !a.falsa_alarma
         ).length
         return [`${i}:00`, total]
-        }),
+      }),
     ]
     const hojaHoras = XLSX.utils.aoa_to_sheet(horasData)
     hojaHoras['!cols'] = [{ wch: 10 }, { wch: 15 }]
     XLSX.utils.book_append_sheet(libro, hojaHoras, 'Picos por Hora')
 
-    // Hoja 4 — Picos por día
     const diasData = [
-        ['Día', 'Total Alertas'],
-        ...DIAS.map((dia, i) => [
+      ['Día', 'Total Alertas'],
+      ...DIAS.map((dia, i) => [
         dia,
-        alertas.filter((a) => new Date(a.created_at).getDay() === i).length,
-        ]),
+        alertas.filter((a) => new Date(a.created_at).getDay() === i && !a.falsa_alarma).length,
+      ]),
     ]
     const hojaDias = XLSX.utils.aoa_to_sheet(diasData)
     hojaDias['!cols'] = [{ wch: 10 }, { wch: 15 }]
     XLSX.utils.book_append_sheet(libro, hojaDias, 'Picos por Día')
 
-    // Hoja 5 — Por tipo
     const tipoData = [
-        ['Tipo', 'Total Alertas', 'Porcentaje'],
-        ...Object.keys(COLORES_TIPO).map((tipo) => {
-        const total = alertas.filter((a) => a.tipo === tipo).length
-        const pct = alertas.length
-            ? ((total / alertas.length) * 100).toFixed(1) + '%'
-            : '0%'
+      ['Tipo', 'Total Alertas', 'Porcentaje'],
+      ...Object.keys(COLORES_TIPO).map((tipo) => {
+        const total = alertas.filter((a) => a.tipo === tipo && !a.falsa_alarma).length
+        const pct = alertas.length ? ((total / alertas.length) * 100).toFixed(1) + '%' : '0%'
         return [tipo, total, pct]
-        }),
+      }),
     ]
     const hojaTipo = XLSX.utils.aoa_to_sheet(tipoData)
     hojaTipo['!cols'] = [{ wch: 16 }, { wch: 15 }, { wch: 12 }]
     XLSX.utils.book_append_sheet(libro, hojaTipo, 'Por Tipo')
 
-    // Hoja 6 — Datos crudos
     const crudosData = [
-        ['Fecha', 'Local N°', 'Nombre Local', 'Tipo', 'Estado',
-        'Detalle', 'Atendida Por', 'Tiempo Respuesta', 'Respuesta al Local'],
-        ...alertas.map((a) => [
+      ['Fecha', 'Local N°', 'Nombre Local', 'Tipo', 'Estado',
+        'Falsa Alarma', 'Detalle', 'Atendida Por', 'Tiempo Respuesta', 'Respuesta al Local'],
+      ...alertas.map((a) => [
         new Date(a.created_at).toLocaleString('es-CO'),
         a.local_numero,
         a.local_nombre || '',
         a.tipo,
         a.estado,
+        a.falsa_alarma ? 'Sí' : 'No',
         a.detalle || '',
         a.atendida_por || '',
         a.tiempo_respuesta_seg != null ? formatTiempo(a.tiempo_respuesta_seg) : '',
         a.respuesta || '',
-        ]),
+      ]),
     ]
     const hojaCrudos = XLSX.utils.aoa_to_sheet(crudosData)
     hojaCrudos['!cols'] = [
-        { wch: 18 }, { wch: 10 }, { wch: 25 }, { wch: 14 },
-        { wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 30 },
+      { wch: 18 }, { wch: 10 }, { wch: 25 }, { wch: 14 },
+      { wch: 12 }, { wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 30 },
     ]
     XLSX.utils.book_append_sheet(libro, hojaCrudos, 'Datos Completos')
 
     const fecha = new Date().toLocaleDateString('es-CO').replace(/\//g, '-')
     XLSX.writeFile(libro, `Estadisticas_AlertaPaseo_${fecha}.xlsx`)
-    }
-
-  if (cargando) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-gray-400">Cargando estadísticas...</p>
-      </div>
-    )
   }
 
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Filtro de período */}
-      <div className="flex justify-end">
+      {/* Filtro y exportar */}
+      <div className="flex justify-end gap-2 flex-wrap">
         <select
           className="bg-gray-800 text-white rounded-xl px-4 py-2 text-sm"
           value={periodo}
@@ -236,20 +229,20 @@ export default function Estadisticas() {
           <option value="todos">Todo el historial</option>
         </select>
         <button
-            onClick={exportarEstadisticas}
-            disabled={alertas.length === 0}
-            className="bg-green-700 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-40 whitespace-nowrap"
+          onClick={exportarEstadisticas}
+          disabled={alertas.length === 0}
+          className="bg-green-700 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-40 whitespace-nowrap"
         >
-            📥 Exportar Excel
+          📥 Exportar Excel
         </button>
       </div>
 
       {/* Resumen del turno */}
       <div>
         <h2 className="text-gray-400 text-xs uppercase tracking-widest mb-3">
-          Turno actual — últimas 8 horas
+        Alertas recibidas desde la apertura 7:00 AM hasta este momento
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 mb-2 sm:grid-cols-5">
           <div className="bg-gray-800 rounded-2xl p-4">
             <p className="text-gray-400 text-xs mb-1">Total alertas</p>
             <p className="text-white text-3xl font-bold">{alertasTurno.length}</p>
@@ -263,12 +256,21 @@ export default function Estadisticas() {
             <p className="text-red-400 text-3xl font-bold">{pendientesTurno}</p>
           </div>
           <div className="bg-gray-800 rounded-2xl p-4">
-            <p className="text-gray-400 text-xs mb-1">T. promedio turno</p>
+            <p className="text-gray-400 text-xs mb-1">Falsas alarmas</p>
+            <p className="text-orange-400 text-3xl font-bold">{falsasTurno}</p>
+          </div>
+          <div className="bg-gray-800 rounded-2xl p-4">
+            <p className="text-gray-400 text-xs mb-1">Atención en promedio</p>
             <p className="text-blue-400 text-xl font-bold">
               {formatTiempo(tiempoPromedioTurno)}
             </p>
           </div>
         </div>
+        {falsasAlarmas > 0 && (
+          <div className="bg-orange-950 border border-orange-800 rounded-xl px-4 py-2 text-orange-400 text-sm">
+            ⚠️ {falsasAlarmas} falsa{falsasAlarmas !== 1 ? 's' : ''} alarma{falsasAlarmas !== 1 ? 's' : ''} en el período seleccionado — excluidas de las gráficas
+          </div>
+        )}
       </div>
 
       {/* Ranking operadores */}
@@ -295,9 +297,7 @@ export default function Estadisticas() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-blue-400 font-bold text-sm">
-                    {formatTiempo(op.promedio)}
-                  </p>
+                  <p className="text-blue-400 font-bold text-sm">{formatTiempo(op.promedio)}</p>
                   <p className="text-gray-500 text-xs">promedio</p>
                 </div>
               </div>
@@ -315,29 +315,9 @@ export default function Estadisticas() {
           <div className="bg-gray-800 rounded-2xl p-4">
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={picosPorHora} barSize={20}>
-                <XAxis
-                  dataKey="hora"
-                  tick={{ fill: '#9ca3af', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: '#B9CDE5', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                  width={20}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1f2937',
-                    border: 'none',
-                    borderRadius: 12,
-                    color: '#fff',
-                    fontSize: 12,
-                  }}
-                  cursor={{ fill: '#374151' }}
-                />
+                <XAxis dataKey="hora" tick={{ fill: '#9ca3af', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} width={20} />
+                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 12, color: '#fff', fontSize: 12 }} cursor={{ fill: '#374151' }} />
                 <Bar dataKey="total" radius={[6, 6, 0, 0]} fill="#6366f1" />
               </BarChart>
             </ResponsiveContainer>
@@ -345,7 +325,7 @@ export default function Estadisticas() {
         </div>
       )}
 
-      {/* Picos por día de semana */}
+      {/* Picos por día */}
       <div>
         <h2 className="text-gray-400 text-xs uppercase tracking-widest mb-3">
           📅 Alertas por día de la semana
@@ -353,29 +333,9 @@ export default function Estadisticas() {
         <div className="bg-gray-800 rounded-2xl p-4">
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={picosPorDia} barSize={30}>
-              <XAxis
-                dataKey="dia"
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-                width={20}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1f2937',
-                  border: 'none',
-                  borderRadius: 12,
-                  color: '#fff',
-                  fontSize: 12,
-                }}
-                cursor={{ fill: '#374151' }}
-              />
+              <XAxis dataKey="dia" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} width={20} />
+              <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 12, color: '#fff', fontSize: 12 }} cursor={{ fill: '#374151' }} />
               <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                 {picosPorDia.map((_, i) => (
                   <Cell key={i} fill={COLORES_BARRAS[i]} />
@@ -396,35 +356,27 @@ export default function Estadisticas() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
-                    data={porTipo}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="55%"
-                    outerRadius={70}
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                    >
+                  data={porTipo}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="55%"
+                  outerRadius={65}
+                  label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
                   {porTipo.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1f2937',
-                    border: 'none',
-                    borderRadius: 12,
-                    color: '#fff',
-                    fontSize: 12,
-                  }}
-                />
+                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 12, color: '#fff', fontSize: 12 }} />
                 <Legend
-                verticalAlign="bottom"
-                align="center"
-                wrapperStyle={{ paddingTop: '20px', fontSize: 12 }}
-                formatter={(value) => (
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{ paddingTop: '20px', fontSize: 12 }}
+                  formatter={(value) => (
                     <span style={{ color: '#9ca3af', fontSize: 12 }}>{value}</span>
-                )}
+                  )}
                 />
               </PieChart>
             </ResponsiveContainer>
