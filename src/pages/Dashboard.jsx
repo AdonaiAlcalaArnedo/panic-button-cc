@@ -236,6 +236,16 @@ export default function Dashboard() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setVista('comunicados')}
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
+                vista === 'comunicados'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              📢 Comunicados
+            </button>
 
             {esAdmin && (
               <>
@@ -269,10 +279,7 @@ export default function Dashboard() {
                 >
                   👮 Operadores
                 </button>
-              </>
-            )}
-
-            <button
+                <button
               onClick={() => setVista('respuestas')}
               className={`px-3 py-2 rounded-xl text-sm text-center ${
                 vista === 'respuestas'
@@ -281,28 +288,6 @@ export default function Dashboard() {
               }`}
             >
               💬 Respuestas
-            </button>
-
-            <button
-              onClick={() => setVista('comunicados')}
-              className={`px-3 py-2 rounded-xl text-sm text-center ${
-                vista === 'comunicados'
-                  ? 'bg-white text-gray-900'
-                  : 'bg-gray-800 text-gray-400'
-              }`}
-            >
-              📢 Comunicados
-            </button>
-
-            <button
-              onClick={() => setVista('reportes')}
-              className={`px-3 py-2 rounded-xl text-sm text-center ${
-                vista === 'reportes'
-                  ? 'bg-white text-gray-900'
-                  : 'bg-gray-800 text-gray-400'
-              }`}
-            >
-              📊 Reportes
             </button>
             <button
               onClick={() => setVista('estadisticas')}
@@ -314,11 +299,29 @@ export default function Dashboard() {
             >
               📈 Estadísticas
             </button>
+              </>
+            )}
+
+            
+
+            
+
+            <button
+              onClick={() => setVista('reportes')}
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
+                vista === 'reportes'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              📊 Reportes
+            </button>
+            
           </div>
         </div>
 
         {/* Vistas */}
-        {vista === 'comunicados' && esAdmin ? (
+        {vista === 'comunicados' ? (
         <Comunicados operadorNombre={operador?.nombre} />
         ) : vista === 'respuestas' && esAdmin ? (
           <RespuestasRapidas />
