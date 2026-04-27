@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+
+
 const TIPOS_ALERTA = [
   { tipo: 'seguridad', label: 'Seguridad', emoji: '🚨', color: 'bg-red-600' },
   { tipo: 'salud', label: 'Salud', emoji: '🏥', color: 'bg-orange-500' },
@@ -30,6 +32,7 @@ export default function LocalApp() {
   const [enviando, setEnviando] = useState(false)
   const [alertaEnviada, setAlertaEnviada] = useState(null)
   const [sinConexion, setSinConexion] = useState(false)
+  const [comunicadoActivo, setComunicadoActivo] = useState(null)
 
   useEffect(() => {
   function actualizarConexion() {
@@ -80,6 +83,20 @@ export default function LocalApp() {
     }
 
     iniciar()
+  }, [])
+
+    useEffect(() => {
+    const canal = supabase
+      .channel('comunicados-masivos')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comunicados' },
+        (payload) => {
+          setComunicadoActivo(payload.new)
+        }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(canal)
   }, [])
 
     async function enviarAlerta() {
@@ -252,6 +269,36 @@ export default function LocalApp() {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center p-6">
       <div className="w-full max-w-sm">
+        {comunicadoActivo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
+          <div className="bg-gray-900 rounded-3xl overflow-hidden w-full max-w-sm border-2 border-blue-500"
+            style={{ boxShadow: '0 0 40px #3b82f644' }}>
+            <div className="bg-blue-600 px-4 py-2 flex items-center gap-2">
+              <span className="text-white font-bold text-sm">
+                📢 Comunicado del Centro Comercial
+              </span>
+            </div>
+            <div className="p-6">
+              <p className="text-white text-lg font-medium mb-6 leading-relaxed">
+                {comunicadoActivo.mensaje}
+              </p>
+              <p className="text-gray-400 text-xs mb-6">
+                {new Date(comunicadoActivo.created_at).toLocaleTimeString('es-CO', {
+                  hour: '2-digit', minute: '2-digit'
+                })}
+              </p>
+              <button
+                onClick={() => setComunicadoActivo(null)}
+                className="w-full bg-blue-600 text-white py-3 rounded-2xl font-bold"
+              >
+                Entendido ✓
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
   {sinConexion && (
     <div className="bg-red-900 border border-red-600 rounded-2xl p-4 mb-4 text-center">
       <p className="text-red-400 font-bold text-sm">⚠️ Sin conexión a internet</p>

@@ -8,6 +8,7 @@ import Reportes from './Reportes'
 import Operadores from './Operadores'
 import Estadisticas from './Estadisticas'
 import RespuestasRapidas from './RespuestasRapidas'
+import Comunicados from './Comunicados'
 
 const COLORES = {
   seguridad: 'border-red-500 bg-red-950',
@@ -283,6 +284,17 @@ export default function Dashboard() {
             </button>
 
             <button
+              onClick={() => setVista('comunicados')}
+              className={`px-3 py-2 rounded-xl text-sm text-center ${
+                vista === 'comunicados'
+                  ? 'bg-white text-gray-900'
+                  : 'bg-gray-800 text-gray-400'
+              }`}
+            >
+              📢 Comunicados
+            </button>
+
+            <button
               onClick={() => setVista('reportes')}
               className={`px-3 py-2 rounded-xl text-sm text-center ${
                 vista === 'reportes'
@@ -306,7 +318,9 @@ export default function Dashboard() {
         </div>
 
         {/* Vistas */}
-        {vista === 'respuestas' && esAdmin ? (
+        {vista === 'comunicados' && esAdmin ? (
+        <Comunicados operadorNombre={operador?.nombre} />
+        ) : vista === 'respuestas' && esAdmin ? (
           <RespuestasRapidas />
         ) : vista === 'estadisticas' ? (
           <Estadisticas />

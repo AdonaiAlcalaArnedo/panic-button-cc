@@ -8,6 +8,7 @@ export default function Operadores() {
   const [guardando, setGuardando] = useState(false)
   const [editandoClave, setEditandoClave] = useState(null)
   const [nuevaClave, setNuevaClave] = useState('')
+  const [operadorActualId, setOperadorActualId] = useState(null)
   const [form, setForm] = useState({
     nombre: '', usuario: '', clave: '', rol: 'operador'
   })
@@ -23,6 +24,10 @@ export default function Operadores() {
 
   useEffect(() => {
     cargarOperadores()
+    try {
+      const data = sessionStorage.getItem('operador')
+      if (data) setOperadorActualId(JSON.parse(data).id)
+    } catch (e) {}
   }, [])
 
   async function crearOperador() {
@@ -43,10 +48,6 @@ export default function Operadores() {
   }
 
   async function toggleActivo(op) {
-    if (op.rol === 'admin' && op.activo) {
-      alert('No puedes desactivar al administrador')
-      return
-    }
     const confirmar = window.confirm(
       op.activo
         ? `¿Desactivar acceso de ${op.nombre}?`
@@ -54,6 +55,28 @@ export default function Operadores() {
     )
     if (!confirmar) return
     await supabase.from('operadores').update({ activo: !op.activo }).eq('id', op.id)
+    cargarOperadores()
+  }
+
+  async function eliminarOperador(op) {
+    if (op.id === operadorActualId) {
+      alert('No puedes eliminarte a ti mismo.')
+      return
+    }
+    if (op.rol === 'admin') {
+      const adminsActivos = operadores.filter(
+        (o) => o.rol === 'admin' && o.activo && o.id !== op.id
+      )
+      if (adminsActivos.length === 0) {
+        alert('No es posible eliminar al único administrador activo del sistema.')
+        return
+      }
+    }
+    const ok = window.confirm(
+      `¿Eliminar permanentemente a ${op.nombre}? Esta acción no se puede deshacer.`
+    )
+    if (!ok) return
+    await supabase.from('operadores').delete().eq('id', op.id)
     cargarOperadores()
   }
 
@@ -192,6 +215,7 @@ export default function Operadores() {
                   </div>
                   <p className="text-gray-400 text-sm">@{op.usuario}</p>
                 </div>
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -210,6 +234,14 @@ export default function Operadores() {
                   >
                     {op.activo ? 'Desactivar' : 'Reactivar'}
                   </button>
+                  {op.id !== operadorActualId && (
+                    <button
+                      onClick={() => eliminarOperador(op)}
+                      className="bg-gray-700 text-red-400 text-sm px-3 py-2 rounded-xl"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             )}
