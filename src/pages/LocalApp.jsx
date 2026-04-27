@@ -355,7 +355,7 @@ export default function LocalApp() {
           Seleccione el tipo de alerta
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
           {TIPOS_ALERTA.map((item, i) => (
             <button
               key={item.tipo}
@@ -377,7 +377,7 @@ export default function LocalApp() {
             >
               <span style={{ fontSize: 28, flexShrink: 0 }}>{item.emoji}</span>
               <span style={{
-                fontFamily: 'var(--font-display)', fontSize: '1.2rem',
+                fontFamily: 'var(--font-display)', fontSize: '1.8rem',
                 fontWeight: 700, color: item.color, letterSpacing: '0.05em', flex: 1, textAlign: 'left',
               }}>
                 {item.label.toUpperCase()}
