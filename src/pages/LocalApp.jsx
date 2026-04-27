@@ -365,7 +365,7 @@ export default function LocalApp() {
                 background: item.bg,
                 border: `1px solid ${item.border}`,
                 borderRadius: 'var(--radius-lg)',
-                padding: '1rem 1.25rem',
+                padding: '1.5rem 1.25rem',
                 display: 'flex', alignItems: 'center', gap: '1rem',
                 cursor: 'pointer', width: '100%',
                 transition: 'all 0.15s',
@@ -375,7 +375,7 @@ export default function LocalApp() {
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateX(4px)'; e.currentTarget.style.boxShadow = `0 4px 20px ${item.color}30` }}
               onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = `0 2px 12px ${item.color}18` }}
             >
-              <span style={{ fontSize: 28, flexShrink: 0 }}>{item.emoji}</span>
+              <span style={{ fontSize: 32, flexShrink: 0 }}>{item.emoji}</span>
               <span style={{
                 fontFamily: 'var(--font-display)', fontSize: '1.8rem',
                 fontWeight: 700, color: item.color, letterSpacing: '0.05em', flex: 1, textAlign: 'left',
