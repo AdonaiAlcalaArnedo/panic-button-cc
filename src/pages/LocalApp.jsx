@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+const [textoBanner, setTextoBanner] = useState(() => {
+  const visto = localStorage.getItem('comunicado_visto_id')
+  return visto ? localStorage.getItem('comunicado_texto_' + visto) : null
+})
+
 const TIPOS_ALERTA = [
   { tipo: 'seguridad',     label: 'Seguridad',     emoji: '🚨', color: '#EF4444', bg: 'rgba(239,68,68,0.12)',    border: 'rgba(239,68,68,0.35)' },
   { tipo: 'salud',         label: 'Salud',          emoji: '🏥', color: '#F97316', bg: 'rgba(249,115,22,0.12)',   border: 'rgba(249,115,22,0.35)' },
@@ -295,11 +300,12 @@ export default function LocalApp() {
               </p>
               <button
                 onClick={() => {
-                  localStorage.setItem('comunicado_visto_id', comunicadoActivo.id)
-                  localStorage.setItem('comunicado_texto_' + comunicadoActivo.id, comunicadoActivo.mensaje)
-                  setComunicadoActivo(null)
-                }}
-                style={{
+                    localStorage.setItem('comunicado_visto_id', comunicadoActivo.id)
+                    localStorage.setItem('comunicado_texto_' + comunicadoActivo.id, comunicadoActivo.mensaje)
+                    setTextoBanner(comunicadoActivo.mensaje)
+                    setComunicadoActivo(null)
+                  }}
+                                  style={{
                   width: '100%', padding: '0.85rem',
                   background: 'var(--info)', color: 'white', border: 'none',
                   borderRadius: 'var(--radius-md)',
@@ -314,28 +320,23 @@ export default function LocalApp() {
         </div>
       )}
 
-      {/* Banner comunicado persistente */}
-      {!comunicadoActivo && localStorage.getItem('comunicado_visto_id') && (() => {
-        const visto = localStorage.getItem('comunicado_visto_id')
-        const texto = localStorage.getItem('comunicado_texto_' + visto)
-        return texto ? (
-          <div style={{
-            background: 'rgba(59,130,246,0.12)',
-            borderBottom: '1px solid rgba(59,130,246,0.25)',
-            padding: '0.5rem 1.25rem',
-            display: 'flex', alignItems: 'center', gap: 8,
+      {textoBanner && !comunicadoActivo && (
+        <div style={{
+          background: 'rgba(59,130,246,0.12)',
+          borderBottom: '1px solid rgba(59,130,246,0.25)',
+          padding: '0.5rem 1.25rem',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 14, flexShrink: 0 }}>📢</span>
+          <p style={{
+            color: '#93C5FD', fontSize: '0.78rem',
+            fontFamily: 'var(--font-body)', flex: 1,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
-            <span style={{ fontSize: 14, flexShrink: 0 }}>📢</span>
-            <p style={{
-              color: '#93C5FD', fontSize: '0.78rem',
-              fontFamily: 'var(--font-body)', flex: 1,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {texto}
-            </p>
-          </div>
-        ) : null
-      })()}
+            {textoBanner}
+          </p>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{
