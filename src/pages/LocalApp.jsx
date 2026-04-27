@@ -86,18 +86,35 @@ export default function LocalApp() {
   }, [])
 
     useEffect(() => {
-    const canal = supabase
-      .channel('comunicados-masivos')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'comunicados' },
-        (payload) => {
-          setComunicadoActivo(payload.new)
-        }
-      )
-      .subscribe()
-    return () => supabase.removeChannel(canal)
-  }, [])
+  async function verificarComunicadoReciente() {
+    const visto = localStorage.getItem('comunicado_visto_id')
+    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data } = await supabase
+      .from('comunicados')
+      .select('*')
+      .gte('created_at', hace24h)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    if (data && data.id !== visto) {
+      setComunicadoActivo(data)
+    }
+  }
+
+  verificarComunicadoReciente()
+
+  const canal = supabase
+    .channel('comunicados-masivos')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'comunicados' },
+      (payload) => {
+        setComunicadoActivo(payload.new)
+      }
+    )
+    .subscribe()
+  return () => supabase.removeChannel(canal)
+}, [])
 
     async function enviarAlerta() {
       setEnviando(true)
@@ -289,11 +306,14 @@ export default function LocalApp() {
                 })}
               </p>
               <button
-                onClick={() => setComunicadoActivo(null)}
-                className="w-full bg-blue-600 text-white py-3 rounded-2xl font-bold"
-              >
-                Entendido ✓
-              </button>
+                  onClick={() => {
+                    localStorage.setItem('comunicado_visto_id', comunicadoActivo.id)
+                    setComunicadoActivo(null)
+                  }}
+                  className="w-full bg-blue-600 text-white py-3 rounded-2xl font-bold"
+                >
+                  Entendido ✓
+                </button>
             </div>
           </div>
         </div>

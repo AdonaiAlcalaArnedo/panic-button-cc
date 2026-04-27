@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import * as XLSX from 'xlsx'
 
 const MENSAJES_RAPIDOS = [
   'Simulacro de evacuación en 5 minutos. Por favor prepárense.',
@@ -54,6 +55,24 @@ export default function Comunicados({ operadorNombre }) {
     }
   }
 
+
+  function exportarComunicados() {
+  const filas = [
+    ['Fecha', 'Enviado por', 'Mensaje'],
+    ...comunicados.map((c) => [
+      formatFecha(c.created_at),
+      c.enviado_por,
+      c.mensaje,
+    ]),
+  ]
+  const hoja = XLSX.utils.aoa_to_sheet(filas)
+  hoja['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 60 }]
+  const libro = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(libro, hoja, 'Comunicados')
+  const fecha = new Date().toLocaleDateString('es-CO').replace(/\//g, '-')
+  XLSX.writeFile(libro, `Comunicados_AlertaPaseo_${fecha}.xlsx`)
+}
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -104,9 +123,18 @@ export default function Comunicados({ operadorNombre }) {
       </div>
 
       {/* Historial */}
-      <h3 className="text-gray-400 text-xs uppercase tracking-widest mb-3">
-        Historial de comunicados
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-400 text-xs uppercase tracking-widest">
+                Historial de comunicados
+            </h3>
+            <button
+                onClick={exportarComunicados}
+                disabled={comunicados.length === 0}
+                className="bg-green-700 text-white text-xs px-3 py-1.5 rounded-xl disabled:opacity-40"
+            >
+                📥 Exportar Excel
+            </button>
+            </div>
 
       {comunicados.length === 0 ? (
         <p className="text-gray-500 text-center py-8">
