@@ -296,6 +296,7 @@ export default function LocalApp() {
               <button
                 onClick={() => {
                   localStorage.setItem('comunicado_visto_id', comunicadoActivo.id)
+                  localStorage.setItem('comunicado_texto_' + comunicadoActivo.id, comunicadoActivo.mensaje)
                   setComunicadoActivo(null)
                 }}
                 style={{
@@ -312,6 +313,29 @@ export default function LocalApp() {
           </div>
         </div>
       )}
+
+      {/* Banner comunicado persistente */}
+      {!comunicadoActivo && localStorage.getItem('comunicado_visto_id') && (() => {
+        const visto = localStorage.getItem('comunicado_visto_id')
+        const texto = localStorage.getItem('comunicado_texto_' + visto)
+        return texto ? (
+          <div style={{
+            background: 'rgba(59,130,246,0.12)',
+            borderBottom: '1px solid rgba(59,130,246,0.25)',
+            padding: '0.5rem 1.25rem',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>📢</span>
+            <p style={{
+              color: '#93C5FD', fontSize: '0.78rem',
+              fontFamily: 'var(--font-body)', flex: 1,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {texto}
+            </p>
+          </div>
+        ) : null
+      })()}
 
       {/* Header */}
       <div style={{
