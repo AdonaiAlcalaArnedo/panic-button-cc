@@ -79,17 +79,19 @@ export default function LocalApp() {
 
   useEffect(() => {
     async function verificarComunicadoReciente() {
-      try {
-        const visto = localStorage.getItem('comunicado_visto_id')
-        const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-        const { data } = await supabase
-          .from('comunicados').select('*')
-          .gte('created_at', hace24h)
-          .order('created_at', { ascending: false })
-          .limit(1).single()
-        if (data && data.id !== visto) setComunicadoActivo(data)
-      } catch {}
+  try {
+    const visto = localStorage.getItem('comunicado_visto_id')
+    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data } = await supabase
+      .from('comunicados').select('*')
+      .gte('created_at', hace24h)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (data && data.length > 0 && data[0].id !== visto) {
+      setComunicadoActivo(data[0])
     }
+  } catch {}
+}
     verificarComunicadoReciente()
 
     const canal = supabase
