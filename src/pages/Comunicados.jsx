@@ -33,6 +33,22 @@ export default function Comunicados({ operadorNombre }) {
     if (data) setComunicados(data)
   }
 
+  async function eliminarComunicado(id) {
+  const ok = window.confirm('¿Eliminar este comunicado del historial?')
+  if (!ok) return
+  await supabase.from('comunicados').delete().eq('id', id)
+  cargarComunicados()
+}
+
+async function eliminarTodos() {
+  const ok = window.confirm('¿Eliminar todo el historial de comunicados? Esta acción no se puede deshacer.')
+  if (!ok) return
+  await supabase.from('comunicados').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  cargarComunicados()
+}
+
+
+
   useEffect(() => {
     cargarComunicados()
   }, [])
@@ -123,18 +139,27 @@ export default function Comunicados({ operadorNombre }) {
       </div>
 
       {/* Historial */}
-      <div className="flex items-center justify-between mb-3">
-            <h3 className="text-gray-400 text-xs uppercase tracking-widest">
-                Historial de comunicados
-            </h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
+        <h3 style={{ color: 'var(--text-3)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+            Historial de comunicados
+        </h3>
+        <div style={{ display: 'flex', gap: 8 }}>
             <button
-                onClick={exportarComunicados}
-                disabled={comunicados.length === 0}
-                className="bg-green-700 text-white text-xs px-3 py-1.5 rounded-xl disabled:opacity-40"
+            onClick={exportarComunicados}
+            disabled={comunicados.length === 0}
+            style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#6EE7B7', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.85rem', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.78rem', opacity: comunicados.length === 0 ? 0.4 : 1 }}
             >
-                📥 Exportar Excel
+            📥 Exportar
             </button>
-            </div>
+            <button
+            onClick={eliminarTodos}
+            disabled={comunicados.length === 0}
+            style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#FCA5A5', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.85rem', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.78rem', opacity: comunicados.length === 0 ? 0.4 : 1 }}
+            >
+            🗑️ Limpiar historial
+            </button>
+        </div>
+        </div>
 
       {comunicados.length === 0 ? (
         <p className="text-gray-500 text-center py-8">
@@ -143,21 +168,31 @@ export default function Comunicados({ operadorNombre }) {
       ) : (
         <div className="flex flex-col gap-3">
           {comunicados.map((c) => (
-            <div key={c.id} className="bg-gray-800 rounded-xl p-4">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <span className="text-blue-400 text-xs font-medium">
-                  📢 Comunicado masivo
+            <div key={c.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: '0.5rem' }}>
+                <span style={{ color: '#93C5FD', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    📢 Comunicado masivo
                 </span>
-                <span className="text-gray-500 text-xs shrink-0">
-                  {formatFecha(c.created_at)}
-                </span>
-              </div>
-              <p className="text-white text-sm mb-2">{c.mensaje}</p>
-              <p className="text-gray-400 text-xs">
-                Enviado por: <span className="text-gray-300">{c.enviado_por}</span>
-              </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ color: 'var(--text-3)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+                    {formatFecha(c.created_at)}
+                    </span>
+                    <button
+                    onClick={() => eliminarComunicado(c.id)}
+                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#FCA5A5', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: '0.72rem' }}
+                    >
+                    🗑️
+                    </button>
+                </div>
+                </div>
+                <p style={{ color: 'var(--text-1)', fontSize: '0.9rem', marginBottom: '0.4rem', lineHeight: 1.5 }}>
+                {c.mensaje}
+                </p>
+                <p style={{ color: 'var(--text-3)', fontSize: '0.75rem' }}>
+                Enviado por: <span style={{ color: 'var(--text-2)' }}>{c.enviado_por}</span>
+                </p>
             </div>
-          ))}
+            ))}
         </div>
       )}
     </div>
