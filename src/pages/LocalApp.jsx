@@ -290,7 +290,13 @@ export default function LocalApp() {
             <p style={{ color: '#93C5FD', fontSize: '0.75rem', fontFamily: 'var(--font-body)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {c.mensaje}
             </p>
-          </div>
+            <span style={{ color: 'var(--text-3)', fontSize: '0.68rem', fontFamily: 'var(--font-mono)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {new Date(c.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' })}
+              {' '}
+              {new Date(c.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+      
+          </div> 
         ))}
       </div>
     )}
