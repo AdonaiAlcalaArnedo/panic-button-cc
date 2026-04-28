@@ -28,12 +28,13 @@ export default function LocalApp() {
   const [enviando, setEnviando] = useState(false)
   const [alertaEnviada, setAlertaEnviada] = useState(null)
   const [sinConexion, setSinConexion] = useState(false)
-  const [comunicadoActivo, setComunicadoActivo] = useState(null)
-  const [textoBanner, setTextoBanner] = useState(() => {
+  const [comunicados, setComunicados] = useState([])
+  const [comunicadoModal, setComunicadoModal] = useState(null)
+  const [seenIds, setSeenIds] = useState(() => {
     try {
-      const visto = localStorage.getItem('comunicado_visto_id')
-      return visto ? localStorage.getItem('comunicado_texto_' + visto) : null
-    } catch { return null }
+      const data = localStorage.getItem('comunicados_vistos')
+      return data ? JSON.parse(data) : []
+    } catch { return [] }
   })
 
   useEffect(() => {
@@ -77,31 +78,39 @@ export default function LocalApp() {
     iniciar()
   }, [])
 
-  useEffect(() => {
-    async function verificarComunicadoReciente() {
-  try {
-    const visto = localStorage.getItem('comunicado_visto_id')
-    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const { data } = await supabase
-      .from('comunicados').select('*')
-      .gte('created_at', hace24h)
-      .order('created_at', { ascending: false })
-      .limit(1)
-    if (data && data.length > 0 && data[0].id !== visto) {
-      setComunicadoActivo(data[0])
-    }
-  } catch {}
-}
-    verificarComunicadoReciente()
+      useEffect(() => {
+      async function cargarComunicados() {
+        const { data } = await supabase
+          .from('comunicados')
+          .select('*')
+          .order('created_at', { ascending: false })
+        if (data && data.length > 0) {
+          setComunicados(data)
+          const vistos = (() => {
+            try { return JSON.parse(localStorage.getItem('comunicados_vistos') || '[]') } catch { return [] }
+          })()
+          const noVisto = data.find(c => !vistos.includes(c.id))
+          if (noVisto) setComunicadoModal(noVisto)
+        }
+      }
+      cargarComunicados()
 
-    const canal = supabase
-      .channel('comunicados-masivos')
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'comunicados' },
-        (payload) => setComunicadoActivo(payload.new))
-      .subscribe()
-    return () => supabase.removeChannel(canal)
-  }, [])
+      const canal = supabase
+        .channel('comunicados-masivos')
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'comunicados' },
+          (payload) => {
+            setComunicados(prev => [payload.new, ...prev])
+            setComunicadoModal(payload.new)
+          })
+        .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'comunicados' },
+          (payload) => {
+            setComunicados(prev => prev.filter(c => c.id !== payload.old.id))
+          })
+        .subscribe()
+      return () => supabase.removeChannel(canal)
+    }, [])
 
   async function enviarAlerta() {
     setEnviando(true)
@@ -235,47 +244,56 @@ export default function LocalApp() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
 
       {/* Modal comunicado */}
-      {comunicadoActivo && (
-        <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-          <div className="animate-bounce-in" style={{ width: '100%', maxWidth: 380, background: 'var(--bg-card)', border: '2px solid var(--info)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: '0 0 40px rgba(59,130,246,0.3)' }}>
-            <div style={{ background: 'var(--info)', padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>📢</span>
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'white', fontSize: '1rem', letterSpacing: '0.05em' }}>
-                COMUNICADO OFICIAL
-              </span>
-            </div>
-            <div style={{ padding: '1.5rem' }}>
-              <p style={{ color: 'var(--text-1)', fontSize: '1rem', lineHeight: 1.6, marginBottom: '1rem' }}>
-                {comunicadoActivo.mensaje}
-              </p>
-              <p style={{ color: 'var(--text-3)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', marginBottom: '1.25rem' }}>
-                {new Date(comunicadoActivo.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} — Administración
-              </p>
-              <button
-                onClick={() => {
-                  localStorage.setItem('comunicado_visto_id', comunicadoActivo.id)
-                  localStorage.setItem('comunicado_texto_' + comunicadoActivo.id, comunicadoActivo.mensaje)
-                  setTextoBanner(comunicadoActivo.mensaje)
-                  setComunicadoActivo(null)
-                }}
-                style={{ width: '100%', padding: '0.85rem', background: 'var(--info)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}
-              >
-                Entendido ✓
-              </button>
-            </div>
+      {comunicadoModal && (
+      <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+        <div className="animate-bounce-in" style={{ width: '100%', maxWidth: 380, background: 'var(--bg-card)', border: '2px solid var(--info)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: '0 0 40px rgba(59,130,246,0.3)' }}>
+          <div style={{ background: 'var(--info)', padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📢</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'white', fontSize: '1rem', letterSpacing: '0.05em' }}>
+              COMUNICADO OFICIAL
+            </span>
+          </div>
+          <div style={{ padding: '1.5rem' }}>
+            <p style={{ color: 'var(--text-1)', fontSize: '1rem', lineHeight: 1.6, marginBottom: '1rem' }}>
+              {comunicadoModal.mensaje}
+            </p>
+            <p style={{ color: 'var(--text-3)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', marginBottom: '1.25rem' }}>
+              {new Date(comunicadoModal.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} — Administración
+            </p>
+            <button
+              onClick={() => {
+                const nuevosVistos = [...seenIds, comunicadoModal.id]
+                setSeenIds(nuevosVistos)
+                localStorage.setItem('comunicados_vistos', JSON.stringify(nuevosVistos))
+                const siguienteNoVisto = comunicados.find(c => !nuevosVistos.includes(c.id))
+                setComunicadoModal(siguienteNoVisto || null)
+              }}
+              style={{ width: '100%', padding: '0.85rem', background: 'var(--info)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}
+            >
+              Entendido ✓
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Banner comunicado persistente */}
-      {textoBanner && !comunicadoActivo && (
-        <div style={{ background: 'rgba(59,130,246,0.12)', borderBottom: '1px solid rgba(59,130,246,0.25)', padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, flexShrink: 0 }}>📢</span>
-          <p style={{ color: '#93C5FD', fontSize: '0.78rem', fontFamily: 'var(--font-body)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {textoBanner}
-          </p>
-        </div>
-      )}
+      {comunicados.length > 0 && !comunicadoModal && (
+      <div style={{ background: 'rgba(59,130,246,0.08)', borderBottom: '1px solid rgba(59,130,246,0.2)' }}>
+        {comunicados.map((c, i) => (
+          <div key={c.id} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '0.45rem 1.25rem',
+            borderBottom: i < comunicados.length - 1 ? '1px solid rgba(59,130,246,0.1)' : 'none',
+          }}>
+            <span style={{ fontSize: 12, flexShrink: 0 }}>📢</span>
+            <p style={{ color: '#93C5FD', fontSize: '0.75rem', fontFamily: 'var(--font-body)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {c.mensaje}
+            </p>
+          </div>
+        ))}
+      </div>
+    )}
 
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #0A1628 0%, var(--bg-surface) 100%)', borderBottom: '3px solid var(--accent)', padding: '1rem 1.5rem' }}>
